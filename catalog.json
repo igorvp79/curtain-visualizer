@@ -1,0 +1,74 @@
+[
+  {
+    "name": "Карниз",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor3937-3265-4365-b832-373734623134/bd842c4cb89f47af66cf7137453164aa.png"},
+      {"name": "2", "src": "https://static.tildacdn.com/stor6265-6466-4638-b232-653835396438/14fc922de899577ea50ecea4879f1212.png"},
+      {"name": "3", "src": "https://static.tildacdn.com/stor6362-6262-4333-b932-356139383132/3a2d3aeeb469cbacbec9a6539cb8c2f7.png"},
+      {"name": "4", "src": "https://static.tildacdn.com/stor3834-6666-4239-a661-326337363961/1d28ded4561838eb2cf859abd82eda05.png"},
+      {"name": "5", "src": "https://static.tildacdn.com/stor6232-6663-4365-b538-653536333465/45dc7d27040c91a37d6495aecf3660c5.png"},
+      {"name": "6", "src": "https://static.tildacdn.com/stor3436-3335-4238-b135-383335633536/2abb001c1867544c1e972d2caf70d204.png"},
+      {"name": "7", "src": "https://static.tildacdn.com/stor3035-6364-4337-b562-613839343665/b81f6e0526fd305e1d3466581c904f8d.png"},
+      {"name": "8", "src": "https://static.tildacdn.com/stor3337-3664-4666-a666-353663316336/0545c4cc0d289eb7c19070813b1350b5.png"},
+      {"name": "9", "src": "https://static.tildacdn.com/stor3435-3838-4231-b134-643265303435/b4ce8a3913edd371b545fe09405cabce.png"}
+    ]
+  },
+  {
+    "name": "Тюль",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor3563-6663-4830-a335-636331363430/1579458cf796cf6f14332e7614aeaebd.png"},
+      {"name": "2", "src": "https://static.tildacdn.com/stor3030-3835-4530-a434-383339323230/8a5dfface33b41ca8ddc59509fcaabad.png"}
+    ]
+  },
+  {
+    "name": "Портьеры",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor3032-3339-4563-b830-396164396434/d6c5acf8a3efa80ce19e7c343821eecc.png"},
+      {"name": "2", "src": "https://static.tildacdn.com/stor6338-3737-4830-b832-373939323362/ffa3decb8c2524810e36a4abe53ed26b.png"},
+      {"name": "3", "src": "https://static.tildacdn.com/stor3534-6661-4466-b338-623639653833/08a0d8b107c60011be68f31b6f6bbd2f.png"},
+      {"name": "4", "src": "https://static.tildacdn.com/stor6366-3163-4162-a366-333833393537/b84373592ef0c04dc6bb9d4f89b356bf.png"},
+      {"name": "5", "src": "https://static.tildacdn.com/stor3934-3036-4062-b162-353565303735/480b19c87ea1187da31c6f6969138696.png"},
+      {"name": "6", "src": "https://static.tildacdn.com/stor6439-3064-4132-b061-373361366665/c6218e92ad2db5921753ff90cadb12f6.png"},
+      {"name": "7", "src": "https://static.tildacdn.com/stor6137-6462-4333-a535-376465306464/0bf9fa82c07d70f0d5ba6eeadd30f188.png"}
+    ]
+  },
+  {
+    "name": "На подхвате",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor6562-3932-4762-a236-323339303335/68db06e4ecf56ff1d1bdedec451ab057.png"},
+      {"name": "2", "src": "https://static.tildacdn.com/stor3365-3132-4365-a362-326464333036/82340c5ed21f236b418244d73f621301.png"},
+      {"name": "3", "src": "https://static.tildacdn.com/stor3664-3064-4236-a130-306634373637/f1eb8d210f3b3ab5229b16192632e1db.png"},
+      {"name": "4", "src": "https://static.tildacdn.com/stor6136-6233-4533-a464-396335636661/fd6b751b52085dc77802629b9b448dd5.png"}
+    ]
+  },
+  {
+    "name": "Римские",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor3530-3936-4532-a264-383439366463/b050a3d664cbe5e9e032c41983b93302.png"},
+      {"name": "2", "src": "https://static.tildacdn.com/stor3961-6238-4734-b764-613533306265/566e6d236dc33c591a3bff46755532eb.png"},
+      {"name": "3", "src": "https://static.tildacdn.com/stor6139-3838-4638-b232-303365373538/bfc879aebdd8e6f5fda67870336a4a3f.png"},
+      {"name": "4", "src": "https://static.tildacdn.com/stor6430-3832-4664-b630-663265303737/b5a231818fffa297548a5977345b3e76.png"},
+      {"name": "5", "src": "https://static.tildacdn.com/stor3038-3236-4566-a130-663361653237/3ba76eb3e9493e2b32a8efb46454e74e.png"},
+      {"name": "6", "src": "https://static.tildacdn.com/stor3964-6337-4861-b438-363632623566/70087f763a2801037fb967e3e4f3d11d.png"}
+    ]
+  },
+  {
+    "name": "Рулонные",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor3632-6131-4465-a263-303831376133/86bb098a5129dfe09b03aa16546ba992.png"}
+    ]
+  },
+  {
+    "name": "Плиссе",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor6437-3036-4233-b830-326366386433/084d87d91a5b404163869103b0e55db8.png"},
+      {"name": "2", "src": "https://static.tildacdn.com/stor6236-3162-4136-a537-373032363938/7b31ac26782465911e3da6720b516404.png"}
+    ]
+  },
+  {
+    "name": "Жалюзи",
+    "items": [
+      {"name": "1", "src": "https://static.tildacdn.com/stor6638-3639-4338-b537-316637316233/cf71429d3cc2b788005569c7ee1ea7a4.png"}
+    ]
+  }
+]
