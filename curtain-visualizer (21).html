@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Визуализатор штор — Белая Река</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f2ee;
+    --panel: #ffffff;
+    --accent: #8b6f5e;
+    --accent2: #c4a882;
+    --text: #2c2416;
+    --muted: #9e8e7e;
+    --border: #e0d8cf;
+    --canvas-bg: #ede9e3;
+    --shadow: 0 2px 20px rgba(44,36,22,0.08);
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: 'Jost', sans-serif;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 260px 1fr 220px;
+    grid-template-rows: 56px 1fr;
+    height: 100vh;
+  }
+
+  /* HEADER */
+  header {
+    grid-column: 1 / -1;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    flex-wrap: nowrap;
+  }
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: var(--accent);
+    white-space: nowrap;
+    margin-right: 12px;
+  }
+  .logo span { color: var(--text); font-weight: 300; }
+  .header-sep {
+    width: 1px; height: 24px;
+    background: var(--border);
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+  .h-tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 11px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .h-tool-btn:hover { border-color: var(--accent2); color: var(--accent); }
+  .h-tool-btn.active { border-color: var(--accent); background: rgba(139,111,94,0.1); color: var(--accent); }
+  .h-tool-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+  .eraser-size-header {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .eraser-size-header label { font-size: 11px; color: var(--muted); }
+  .persp-hint-header {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .persp-hint-header span { font-size: 11px; color: var(--muted); }
+  .h-btn-primary {
+    padding: 5px 11px;
+    border: 1.5px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent);
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    color: #fff;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .h-btn-primary:hover { background: #7a5f4f; }
+
+  /* LEFT PANEL — шторы */
+  .panel-left {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-title {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  /* TABS */
+  .cat-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .cat-tab {
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    padding: 8px 4px;
+    border: none;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cat-tab:nth-child(even) { border-right: none; }
+  .cat-tab:hover { background: var(--bg); color: var(--text); }
+  .cat-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .cat-tab:disabled, .cat-tab[style*="opacity"] { opacity: 0.4; }
+  .curtain-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 8px;
+    overflow-y: auto;
+    flex: 1;
+    align-content: start;
+  }
+  .curtain-card {
+    background: #c8bfb5;
+    border: 1.5px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.15s;
+    position: relative;
+  }
+  .curtain-card:hover { border-color: var(--accent2); transform: translateY(-1px); }
+  .curtain-card.active { border-color: var(--accent); }
+  .curtain-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+  .curtain-card .label {
+    position: absolute;
+    bottom: 4px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* Upload room button */
+  .upload-area {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .btn {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    letter-spacing: 0.02em;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(139,111,94,0.04); }
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .btn-primary:hover { background: #7a5f4f; border-color: #7a5f4f; color: #fff; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+  .btn-danger { border-color: #d4a5a5; color: #b85c5c; }
+  .btn-danger:hover { background: rgba(184,92,92,0.06); border-color: #b85c5c; }
+
+  /* CANVAS AREA */
+  .canvas-wrap {
+    background: var(--canvas-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: visible;
+  }
+  #canvas-container {
+    position: relative;
+    box-shadow: 0 8px 40px rgba(44,36,22,0.18);
+    overflow: visible;
+  }
+  .canvas-empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .canvas-empty-icon { font-size: 48px; opacity: 0.3; margin-bottom: 12px; }
+  .canvas-empty-text { font-family: 'Cormorant Garamond', serif; font-size: 18px; color: var(--muted); font-weight: 300; }
+  .canvas-empty-sub { font-size: 12px; color: var(--muted); margin-top: 6px; opacity: 0.7; }
+
+  /* RIGHT PANEL */
+  .panel-right {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+  }
+  .section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* TOOLS */
+  .tools {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .tool-btn {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    background: transparent;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+  }
+  .tool-btn:hover { border-color: var(--accent2); }
+  .tool-btn.active { border-color: var(--accent); background: rgba(139,111,94,0.07); color: var(--accent); }
+  .tool-icon { font-size: 15px; }
+
+  /* COLOR PALETTE */
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+  .swatch {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { border-color: var(--accent); transform: scale(1.1); }
+
+  .custom-color-wrap {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .custom-color-wrap label {
+    font-size: 11px;
+    color: var(--muted);
+    flex: 1;
+  }
+  input[type="color"] {
+    width: 32px;
+    height: 32px;
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    padding: 2px;
+    cursor: pointer;
+    background: none;
+  }
+
+  /* OPACITY */
+  .opacity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1;
+    height: 3px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .opacity-val {
+    font-size: 11px;
+    color: var(--muted);
+    width: 32px;
+    text-align: right;
+  }
+
+  /* ERASER SIZE */
+  .eraser-size-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .eraser-label { font-size: 11px; color: var(--muted); }
+
+  /* STATUS BAR */
+  .status {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 8px 16px;
+    text-align: center;
+    border-top: 1px solid var(--border);
+    margin-top: auto;
+  }
+
+  /* hidden file input */
+  #fileInput { display: none; }
+  #curtainInput { display: none; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">Белая <span>Река</span> · Визуализатор</div>
+    <div class="header-sep"></div>
+
+    <!-- Инструменты -->
+    <button class="h-tool-btn active" id="toolSelect" onclick="setTool('select')">↖ Выбор</button>
+    <button class="h-tool-btn" id="toolEraser" onclick="setTool('eraser')">🧹 Ластик</button>
+    <button class="h-tool-btn" id="toolPerspective" onclick="setTool('perspective')">⬡ Перспектива</button>
+    <button class="h-tool-btn" id="btnUndo" onclick="undo()" disabled title="Отменить (Ctrl+Z)">↩ Отмена</button>
+
+    <!-- Контролы ластика -->
+    <div class="eraser-size-header" id="eraserControls">
+      <label>Размер:</label>
+      <input type="range" id="eraserSize" min="1" max="20" value="5" step="1"
+        style="width:70px;accent-color:var(--accent);" oninput="updateEraserSize()">
+      <span id="eraserSizeVal" style="font-size:11px;color:var(--muted);width:20px;">5</span>
+    </div>
+
+    <!-- Подсказка перспективы -->
+    <div class="persp-hint-header" id="perspectiveHint">
+      <span>Тяните углы шторы</span>
+      <button class="h-btn-primary" onclick="applyPerspective()">✓ Применить</button>
+      <button class="h-tool-btn" onclick="setTool('select')">✕ Отмена</button>
+    </div>
+
+    <!-- Очистить всё — прижато вправо -->
+    <div style="margin-left:auto;">
+      <button class="h-tool-btn" style="border-color:#d4a5a5;color:#b85c5c;" onclick="clearAll()">✕ Очистить всё</button>
+    </div>
+  </header>
+
+  <!-- LEFT PANEL -->
+  <div class="panel-left">
+    <div class="panel-title">Шаблоны штор</div>
+    <div class="cat-tabs" id="catTabs"></div>
+    <div class="curtain-grid" id="curtainGrid"></div>
+    <div class="upload-area" style="display:flex;flex-direction:column;gap:6px;">
+      <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+        📷 Загрузить фото комнаты
+      </button>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <div class="canvas-empty" id="emptyHint">
+      <div class="canvas-empty-icon">🪟</div>
+      <div class="canvas-empty-text">Загрузите фото вашей комнаты</div>
+      <div class="canvas-empty-sub">Затем выберите шаблон шторы из каталога слева</div>
+    </div>
+    <div id="canvas-container" style="position:relative;">
+      <canvas id="c"></canvas>
+      <!-- Zoom control -->
+      <div id="zoomControl" style="display:none; position:absolute; bottom:12px; right:12px; background:rgba(255,255,255,0.92); border:1px solid #e0d8cf; border-radius:8px; padding:7px 12px; display:none; align-items:center; gap:8px; box-shadow:0 2px 12px rgba(44,36,22,0.12); backdrop-filter:blur(4px);">
+        <span style="font-size:11px; color:#9e8e7e; font-family:'Jost',sans-serif; white-space:nowrap;">🔍 Фото</span>
+        <input type="range" id="bgZoom" min="100" max="200" value="100" step="1"
+          style="width:90px; accent-color:#8b6f5e; cursor:pointer;"
+          oninput="applyBgZoom(this.value)">
+        <span id="bgZoomVal" style="font-size:11px; color:#9e8e7e; font-family:'Jost',sans-serif; width:34px;">100%</span>
+        <button onclick="resetBgZoom()" title="Сбросить" style="background:none;border:none;cursor:pointer;font-size:13px;color:#9e8e7e;padding:0;line-height:1;">↺</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel-right">
+
+    <div class="section">
+      <div class="section-label">Цвет шторы</div>
+      <div class="palette" id="palette"></div>
+      <div class="custom-color-wrap">
+        <label>Свой цвет</label>
+        <input type="color" id="customColor" value="#ffffff" oninput="applyColor(this.value)">
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Прозрачность</div>
+      <div class="opacity-row">
+        <input type="range" id="opacitySlider" min="10" max="100" value="100" oninput="applyOpacity(this.value)">
+        <span class="opacity-val" id="opacityVal">100%</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Действия</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <button class="btn" onclick="flipCurtain()">↔ Отзеркалить</button>
+        <button class="btn" onclick="duplicateSelected()">⧉ Дублировать штору</button>
+        <button class="btn" onclick="bringForward()">↑ На передний план</button>
+        <button class="btn" onclick="sendBackward()">↓ На задний план</button>
+        <button class="btn btn-danger" onclick="deleteSelected()">✕ Удалить штору</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Сохранить</div>
+      <button class="btn btn-primary" onclick="saveImage()">💾 Скачать результат</button>
+    </div>
+
+    <div class="status" id="statusBar">Выберите шаблон шторы</div>
+  </div>
+
+</div>
+
+<input type="file" id="fileInput" accept="image/*" onchange="loadRoom(event)">
+
+<script>
+// =========================================
+// INIT FABRIC CANVAS
+// =========================================
+const canvas = new fabric.Canvas('c', {
+  selection: true,
+  preserveObjectStacking: true,
+  clipPath: undefined,
+});
+
+// Разрешаем объектам выходить за пределы canvas
+fabric.Object.prototype.set({
+  lockScalingFlip: false,
+});
+canvas.on('object:moving', function(e) {
+  // без ограничений
+});
+// Отключаем cliping canvas
+canvas.wrapperEl.style.overflow = 'visible';
+canvas.upperCanvasEl.style.overflow = 'visible';
+canvas.lowerCanvasEl.style.overflow = 'visible';
+
+// Ключевое — отключаем ограничение объектов внутри canvas
+fabric.Object.prototype.noScaleCache = false;
+canvas.on('object:scaling', function() {});
+canvas.on('object:moving', function() {});
+
+let currentTool = 'select';
+let currentColor = '#ffffff';
+let activeSwatch = null;
+let roomLoaded = false;
+
+// Resize canvas to fit container
+function resizeCanvas() {
+  const wrap = document.getElementById('canvasWrap');
+  const w = wrap.clientWidth - 40;
+  const h = wrap.clientHeight - 40;
+  if (!roomLoaded) {
+    canvas.setWidth(Math.min(w, 900));
+    canvas.setHeight(Math.min(h, 600));
+  }
+  canvas.renderAll();
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// =========================================
+// PALETTE
+// =========================================
+const COLORS = [
+  '#ffffff','#f5f0eb','#e8ddd0','#d4c4b0','#c4a882',
+  '#b08060','#8b6f5e','#6b4f3f','#4a3020','#2c1a0e',
+  '#f2e8e0','#e0c8b8','#c9a090','#b07860','#8b5a48',
+  '#d4d0c8','#b8b4a8','#908c80','#686460','#404038',
+  '#e8e0d4','#c8c0b0','#a8a098','#888078','#685850',
+  '#d4e0d4','#b0c4b0','#88a888','#607860','#405840',
+  '#d4dce8','#b0bcd0','#8898b8','#6070a0','#404870',
+  '#e8d4e0','#d0b0c4','#b888a8','#a06888','#784858',
+  '#f8e8d0','#f0d0a8','#e0b880','#c89850','#a07830',
+  '#e0e8f0','#c0d0e8','#a0b8e0','#8098c8','#6078a8',
+];
+
+const paletteEl = document.getElementById('palette');
+COLORS.forEach(color => {
+  const sw = document.createElement('div');
+  sw.className = 'swatch';
+  sw.style.background = color;
+  sw.title = color;
+  sw.onclick = () => {
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    applyColor(color);
+  };
+  paletteEl.appendChild(sw);
+});
+
+// =========================================
+// КАТАЛОГ ШТОР ПО КАТЕГОРИЯМ
+// =========================================
+let CATALOG = [];
+
+// Загружаем каталог из внешнего файла
+fetch('catalog.json?v=' + Date.now())
+  .then(r => r.json())
+  .then(data => {
+    CATALOG = data;
+    renderTabs();
+    renderGrid();
+  })
+  .catch(() => {
+    // Fallback если файл не найден
+    console.warn('catalog.json не найден');
+    renderTabs();
+    renderGrid();
+  });
+
+let activeCatIdx = 0;
+
+function renderTabs() {
+  const tabsEl = document.getElementById('catTabs');
+  tabsEl.innerHTML = '';
+  CATALOG.forEach((cat, i) => {
+    const tab = document.createElement('button');
+    tab.className = 'cat-tab' + (i === activeCatIdx ? ' active' : '');
+    tab.textContent = cat.name;
+    if (cat.items.length === 0) tab.style.opacity = '0.4';
+    tab.onclick = () => {
+      activeCatIdx = i;
+      renderTabs();
+      renderGrid();
+    };
+    tabsEl.appendChild(tab);
+  });
+}
+
+function renderGrid() {
+  const grid = document.getElementById('curtainGrid');
+  grid.innerHTML = '';
+  const cat = CATALOG[activeCatIdx];
+  const isHorizontal = cat.name === 'Карниз';
+
+  // Для карнизов — одна колонка, горизонтальные карточки
+  grid.style.gridTemplateColumns = isHorizontal ? '1fr' : '1fr 1fr';
+
+  if (cat.items.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 8px;color:var(--muted);font-size:12px;">Шаблоны скоро появятся</div>';
+    return;
+  }
+
+  cat.items.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'curtain-card';
+    card.id = `card_${activeCatIdx}_${i}`;
+    if (isHorizontal) card.style.height = '60px';
+    card.appendChild(Object.assign(document.createElement('img'), {
+      src: item.src, alt: item.name, crossOrigin: 'anonymous'
+    }));
+    card.onclick = () => addCurtainToCanvas(item, activeCatIdx, i);
+    grid.appendChild(card);
+  });
+}
+
+
+// =========================================
+// ADD CURTAIN TO CANVAS
+// =========================================
+function addCurtainToCanvas(template, catIdx, itemIdx) {
+  if (!template.src) return;
+
+  // Снимаем активный класс со всех карточек
+  document.querySelectorAll('.curtain-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById(`card_${catIdx}_${itemIdx}`);
+  if (card) card.classList.add('active');
+
+  fabric.Image.fromURL(template.src, (img) => {
+    // Сохраняем оригинал для повторного перекрашивания
+    img._curtainOriginal = img.getElement().cloneNode();
+
+    // Масштабируем: карнизы по ширине, шторы по высоте
+    const isCornice = CATALOG[catIdx]?.name === 'Карниз';
+    const roomH = canvas.backgroundImage
+      ? canvas.backgroundImage.height * canvas.backgroundImage.scaleY
+      : canvas.getHeight();
+    const roomW = canvas.getWidth();
+    const scale = isCornice
+      ? (roomW * 0.8) / img.width
+      : (roomH * 0.5) / img.height;
+
+    img.set({
+      left: canvas.getWidth() / 2 - (img.width * scale) / 2,
+      top: 0,
+      scaleX: scale,
+      scaleY: scale,
+      selectable: true,
+      evented: true,
+      hasControls: true,
+      hasBorders: true,
+      cornerColor: '#000000',
+      cornerStrokeColor: '#000000',
+      cornerSize: 10,
+      transparentCorners: false,
+    });
+
+    // Применяем текущий цвет
+    applyTintToImage(img, currentColor);
+
+    canvas.add(img);
+    canvas.setActiveObject(img);
+    canvas.renderAll();
+    setStatus(`Штора «${template.name}» добавлена · Перемещайте и масштабируйте`);
+  }, { crossOrigin: 'anonymous' });
+}
+
+// =========================================
+// ROOM BACKGROUND
+// =========================================
+function loadRoom(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    fabric.Image.fromURL(e.target.result, (img) => {
+      const wrap = document.getElementById('canvasWrap');
+      const maxW = wrap.clientWidth - 40;
+      const maxH = wrap.clientHeight - 40;
+      const scaleW = maxW / img.width;
+      const scaleH = maxH / img.height;
+      const scale = Math.min(scaleW, scaleH, 1);
+      const W = Math.round(img.width * scale);
+      const H = Math.round(img.height * scale);
+
+      canvas.setWidth(W);
+      canvas.setHeight(H);
+
+      canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+        scaleX: scale,
+        scaleY: scale,
+        originX: 'left',
+        originY: 'top',
+      });
+
+      bgBaseScale = scale;
+      bgZoomFactor = 1;
+      document.getElementById('bgZoom').value = 100;
+      document.getElementById('bgZoomVal').textContent = '100%';
+      document.getElementById('zoomControl').style.display = 'flex';
+
+      roomLoaded = true;
+      document.getElementById('emptyHint').style.display = 'none';
+      setStatus('Комната загружена · Настройте зум фото, затем выберите штору');
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+// =========================================
+// ZOOM ФОНА
+// =========================================
+let bgBaseScale = 1; // исходный scale при загрузке
+let bgZoomFactor = 1; // текущий множитель зума
+let bgOffsetX = 0;
+let bgOffsetY = 0;
+
+function applyBgZoom(val) {
+  bgZoomFactor = val / 100;
+  document.getElementById('bgZoomVal').textContent = val + '%';
+
+  const img = canvas.backgroundImage;
+  if (!img) return;
+
+  const newScaleX = bgBaseScale * bgZoomFactor;
+  const newScaleY = bgBaseScale * bgZoomFactor;
+
+  // Центрируем фон относительно canvas
+  const offX = (canvas.getWidth() - img.width * newScaleX) / 2;
+  const offY = (canvas.getHeight() - img.height * newScaleY) / 2;
+
+  img.set({
+    scaleX: newScaleX,
+    scaleY: newScaleY,
+    left: Math.min(0, offX),
+    top: Math.min(0, offY),
+  });
+  canvas.renderAll();
+}
+
+function resetBgZoom() {
+  document.getElementById('bgZoom').value = 100;
+  applyBgZoom(100);
+}
+
+// =========================================
+// COLOR TINT
+// =========================================
+function applyTintToImage(fabricImg, color) {
+  // Берём оригинальный элемент — не перекрашенный
+  const el = fabricImg._curtainOriginal || fabricImg._originalElement || fabricImg.getElement();
+  const w = el.naturalWidth || el.width;
+  const h = el.naturalHeight || el.height;
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width = w;
+  offscreen.height = h;
+  const ctx = offscreen.getContext('2d');
+
+  // Рисуем оригинал
+  ctx.drawImage(el, 0, 0, w, h);
+
+  // Накладываем цвет через multiply
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, w, h);
+
+  // Восстанавливаем прозрачность оригинала
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(el, 0, 0, w, h);
+
+  // Применяем результат к fabric объекту
+  const result = new Image();
+  result.onload = () => {
+    fabricImg.filters = [];
+    fabricImg.setElement(result);
+    fabricImg.applyFilters();
+    canvas.renderAll();
+  };
+  result.src = offscreen.toDataURL('image/png');
+}
+
+function applyColor(color) {
+  currentColor = color;
+  document.getElementById('customColor').value = color;
+  const obj = canvas.getActiveObject();
+  if (obj && obj.type === 'image') {
+    applyTintToImage(obj, color);
+    canvas.renderAll();
+  }
+}
+
+// =========================================
+// OPACITY
+// =========================================
+function applyOpacity(val) {
+  document.getElementById('opacityVal').textContent = val + '%';
+  const obj = canvas.getActiveObject();
+  if (obj) {
+    obj.set('opacity', val / 100);
+    canvas.renderAll();
+  }
+}
+
+// Update opacity slider when object selected
+canvas.on('selection:created', updatePanelForSelection);
+canvas.on('selection:updated', updatePanelForSelection);
+canvas.on('selection:cleared', () => setStatus('Выберите штору на холсте'));
+
+function updatePanelForSelection() {
+  const obj = canvas.getActiveObject();
+  if (obj) {
+    const pct = Math.round((obj.opacity || 1) * 100);
+    document.getElementById('opacitySlider').value = pct;
+    document.getElementById('opacityVal').textContent = pct + '%';
+    setStatus('Штора выбрана · Можно настроить цвет и прозрачность');
+  }
+}
+
+// =========================================
+// TOOLS
+// =========================================
+function setTool(tool) {
+  if (perspMode && tool !== 'perspective') {
+    disablePerspective();
+  }
+
+  currentTool = tool;
+  document.querySelectorAll('.h-tool-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('toolSelect').classList.toggle('active', tool === 'select');
+  document.getElementById('toolEraser').classList.toggle('active', tool === 'eraser');
+  document.getElementById('toolPerspective').classList.toggle('active', tool === 'perspective');
+  document.getElementById('eraserControls').style.display = tool === 'eraser' ? 'flex' : 'none';
+  document.getElementById('perspectiveHint').style.display = tool === 'perspective' ? 'flex' : 'none';
+
+  if (tool === 'eraser') {
+    canvas.isDrawingMode = false;
+    enableEraser();
+    setStatus('Ластик активен · Рисуйте по шторе чтобы стереть');
+  } else if (tool === 'perspective') {
+    disableEraser();
+    canvas.isDrawingMode = false;
+    enablePerspective();
+  } else {
+    disableEraser();
+    canvas.isDrawingMode = false;
+    setStatus('Режим выбора · Кликните на штору');
+  }
+}
+
+function updateEraserSize() {
+  const size = parseInt(document.getElementById('eraserSize').value);
+  document.getElementById('eraserSizeVal').textContent = size;
+  if (canvas.freeDrawingBrush) {
+    canvas.freeDrawingBrush.width = size;
+  }
+}
+
+// =========================================
+// ИСТОРИЯ / UNDO
+// =========================================
+const history = [];
+const MAX_HISTORY = 20;
+let historyPaused = false;
+
+function saveHistory() {
+  if (historyPaused) return;
+  const json = canvas.toJSON(['selectable','evented','cornerColor','cornerSize','transparentCorners']);
+  history.push(JSON.stringify(json));
+  if (history.length > MAX_HISTORY) history.shift();
+  updateUndoBtn();
+}
+
+function undo() {
+  if (history.length < 2) {
+    // Если только одно состояние — откатываемся к пустому canvas
+    if (history.length === 1) {
+      history.pop();
+      historyPaused = true;
+      canvas.clear();
+      canvas.renderAll();
+      historyPaused = false;
+      updateUndoBtn();
+      setStatus('Отменено');
+    }
+    return;
+  }
+  history.pop(); // убираем текущее
+  const json = JSON.parse(history[history.length - 1]); // берём предыдущее
+  historyPaused = true;
+  canvas.loadFromJSON(json, () => {
+    canvas.renderAll();
+    historyPaused = false;
+    updateUndoBtn();
+    setStatus('Отменено');
+  });
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('btnUndo');
+  if (!btn) return;
+  const hasHistory = history.length > 0;
+  btn.disabled = !hasHistory;
+  btn.style.opacity = hasHistory ? '1' : '0.4';
+}
+
+// Ctrl+Z
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    undo();
+  }
+});
+
+// Сохраняем состояние ПЕРЕД действием через object:before события
+// object:added — сохраняем до добавления через перехват add()
+const originalAdd = canvas.add.bind(canvas);
+canvas.add = function(...args) {
+  if (!historyPaused) saveHistory();
+  return originalAdd(...args);
+};
+
+canvas.on('object:modified', saveHistory);
+
+const originalRemove = canvas.remove.bind(canvas);
+canvas.remove = function(...args) {
+  if (!historyPaused) saveHistory();
+  return originalRemove(...args);
+};
+
+// =========================================
+// ERASER — работает через pixel manipulation на offscreen canvas
+// =========================================
+let eraserActive = false;
+let eraserTarget = null; // fabric.Image объект
+let offscreenCanvas = null;
+let offscreenCtx = null;
+let isErasing = false;
+
+function enableEraser() {
+  eraserActive = true;
+  canvas.selection = false;
+  canvas.discardActiveObject();
+  // Отключаем Fabric drag — делаем все объекты невзаимодействующими
+  canvas.forEachObject(o => { o._eraserSelectable = o.selectable; o.selectable = false; o.evented = false; });
+  canvas.renderAll();
+
+  const upper = canvas.upperCanvasEl;
+  upper.style.cursor = 'crosshair';
+
+  upper.addEventListener('mousedown', onEraserStart);
+  upper.addEventListener('mousemove', onEraserMove);
+  upper.addEventListener('mouseup', onEraserEnd);
+  upper.addEventListener('mouseleave', onEraserEnd);
+}
+
+function disableEraser() {
+  eraserActive = false;
+  canvas.selection = true;
+  // Возвращаем взаимодействие объектам
+  canvas.forEachObject(o => { o.selectable = o._eraserSelectable !== undefined ? o._eraserSelectable : true; o.evented = true; });
+
+  const upper = canvas.upperCanvasEl;
+  upper.style.cursor = 'default';
+
+  upper.removeEventListener('mousedown', onEraserStart);
+  upper.removeEventListener('mousemove', onEraserMove);
+  upper.removeEventListener('mouseup', onEraserEnd);
+  upper.removeEventListener('mouseleave', onEraserEnd);
+
+  offscreenCanvas = null;
+  offscreenCtx = null;
+  eraserTarget = null;
+}
+
+function getCanvasPoint(e) {
+  const rect = canvas.upperCanvasEl.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / canvas.getZoom(),
+    y: (e.clientY - rect.top) / canvas.getZoom(),
+  };
+}
+
+function findTopmostImageAt(x, y) {
+  const objs = canvas.getObjects().filter(o => o.type === 'image');
+  for (let i = objs.length - 1; i >= 0; i--) {
+    const o = objs[i];
+    if (o.containsPoint(new fabric.Point(x, y))) return o;
+  }
+  return null;
+}
+
+function onEraserStart(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  const pt = getCanvasPoint(e);
+  eraserTarget = findTopmostImageAt(pt.x, pt.y);
+  if (!eraserTarget) return;
+
+  isErasing = true;
+
+  // Берём ОРИГИНАЛЬНЫЙ элемент ДО применения фильтров
+  const el = eraserTarget._originalElement || eraserTarget._element || eraserTarget.getElement();
+  const w = el.naturalWidth || el.width;
+  const h = el.naturalHeight || el.height;
+
+  offscreenCanvas = document.createElement('canvas');
+  offscreenCanvas.width = w;
+  offscreenCanvas.height = h;
+  offscreenCtx = offscreenCanvas.getContext('2d');
+  offscreenCtx.drawImage(el, 0, 0, w, h);
+
+  eraseAt(pt.x, pt.y);
+}
+
+function onEraserMove(e) {
+  e.stopPropagation();
+  if (!isErasing || !eraserTarget) return;
+  const pt = getCanvasPoint(e);
+  eraseAt(pt.x, pt.y);
+}
+
+function onEraserEnd(e) {
+  if (e) e.stopPropagation();
+  if (!isErasing || !eraserTarget) return;
+  isErasing = false;
+
+  const savedFilters = eraserTarget.filters ? [...eraserTarget.filters] : [];
+  const savedProps = {
+    left: eraserTarget.left,
+    top: eraserTarget.top,
+    scaleX: eraserTarget.scaleX,
+    scaleY: eraserTarget.scaleY,
+    angle: eraserTarget.angle,
+    opacity: eraserTarget.opacity,
+  };
+
+  const dataUrl = offscreenCanvas.toDataURL('image/png');
+  fabric.Image.fromURL(dataUrl, (newImg) => {
+    newImg.set({
+      ...savedProps,
+      selectable: true,
+      evented: true,
+      cornerColor: '#000000',
+      cornerStrokeColor: '#000000',
+      cornerSize: 10,
+      transparentCorners: false,
+    });
+    newImg.filters = savedFilters;
+    newImg.applyFilters();
+
+    historyPaused = true;
+    canvas.remove(eraserTarget);
+    canvas.add(newImg);
+    canvas.renderAll();
+    historyPaused = false;
+    eraserTarget = newImg;
+    offscreenCanvas = null;
+    offscreenCtx = null;
+    saveHistory();
+  });
+}
+
+function eraseAt(canvasX, canvasY) {
+  if (!eraserTarget || !offscreenCtx) return;
+
+  // Переводим координаты canvas → координаты изображения
+  const obj = eraserTarget;
+  const el = eraserTarget.getElement();
+  const w = el.naturalWidth || el.width;
+  const h = el.naturalHeight || el.height;
+
+  // Матрица трансформации объекта
+  const matrix = obj.calcTransformMatrix();
+  const invMatrix = fabric.util.invertTransform(matrix);
+  const localPt = fabric.util.transformPoint({ x: canvasX, y: canvasY }, invMatrix);
+
+  // localPt в координатах объекта (от -width/2 до width/2)
+  const imgX = (localPt.x + obj.width / 2) * (w / obj.width);
+  const imgY = (localPt.y + obj.height / 2) * (h / obj.height);
+
+  const size = parseInt(document.getElementById('eraserSize').value);
+  const radius = size * (w / (obj.width * obj.scaleX));
+
+  offscreenCtx.globalCompositeOperation = 'destination-out';
+  offscreenCtx.beginPath();
+  offscreenCtx.arc(imgX, imgY, radius, 0, Math.PI * 2);
+  offscreenCtx.fill();
+  offscreenCtx.globalCompositeOperation = 'source-over';
+
+  // Обновляем превью в реальном времени — через временный canvas без фильтров
+  const previewUrl = offscreenCanvas.toDataURL('image/png');
+  const imgEl = new Image();
+  imgEl.onload = () => {
+    // Сохраняем _originalElement нетронутым, меняем только _element для превью
+    eraserTarget._element = imgEl;
+    canvas.renderAll();
+  };
+  imgEl.src = previewUrl;
+}
+
+// =========================================
+// ПЕРСПЕКТИВА — mesh warp через треугольники
+// =========================================
+let perspectiveMode = false;
+let perspMode = false;
+let perspTarget = null;       // fabric.Image — штора
+let perspOriginalSrc = null;  // оригинальный src до деформации
+let perspCorners = [];        // [{x,y}, ...] — 4 угла в координатах canvas
+let perspDots = [];           // DOM-элементы угловых точек
+let perspDragging = null;     // индекс тянущейся точки
+
+const MESH_STEPS = 20; // разбивка сетки — чем больше тем точнее но медленнее
+
+function enablePerspective() {
+  const obj = canvas.getActiveObject();
+  if (!obj || obj.type !== 'image') {
+    setStatus('Сначала выберите штору');
+    setTool('select');
+    return;
+  }
+
+  perspTarget = obj;
+  perspMode = true;
+
+  // Сохраняем оригинал
+  const el = obj._curtainOriginal || obj.getElement();
+  const tmp = document.createElement('canvas');
+  tmp.width = el.naturalWidth || el.width;
+  tmp.height = el.naturalHeight || el.height;
+  tmp.getContext('2d').drawImage(el, 0, 0);
+  perspOriginalSrc = tmp.toDataURL('image/png');
+
+  // Начальные углы = углы объекта на canvas
+  const br = obj.getBoundingRect(true, true);
+  perspCorners = [
+    { x: br.left,            y: br.top },             // TL
+    { x: br.left + br.width, y: br.top },             // TR
+    { x: br.left + br.width, y: br.top + br.height }, // BR
+    { x: br.left,            y: br.top + br.height }, // BL
+  ];
+
+  // Делаем объект невидимым — рисуем через overlay
+  obj.set('opacity', 0);
+  canvas.renderAll();
+
+  // Создаём overlay canvas поверх fabric canvas
+  createPerspOverlay();
+  document.getElementById('perspectiveHint').style.display = 'block';
+  setStatus('Перспектива: тяните угловые точки');
+}
+
+function disablePerspective() {
+  perspMode = false;
+  perspDragging = null;
+  removePerspOverlay();
+  document.getElementById('perspectiveHint').style.display = 'none';
+  if (perspTarget) {
+    perspTarget.set('opacity', 1);
+    canvas.renderAll();
+  }
+  perspTarget = null;
+  perspOriginalSrc = null;
+  perspCorners = [];
+}
+
+// ---- Overlay canvas ----
+let perspOverlay = null;
+let perspOverlayCtx = null;
+
+function createPerspOverlay() {
+  removePerspOverlay();
+  const container = document.getElementById('canvas-container');
+  perspOverlay = document.createElement('canvas');
+  perspOverlay.width = canvas.getWidth();
+  perspOverlay.height = canvas.getHeight();
+  perspOverlay.style.cssText = `position:absolute;top:0;left:0;z-index:10;cursor:crosshair;`;
+  container.appendChild(perspOverlay);
+  perspOverlayCtx = perspOverlay.getContext('2d');
+
+  perspOverlay.addEventListener('mousedown', onPerspMouseDown);
+  perspOverlay.addEventListener('mousemove', onPerspMouseMove);
+  perspOverlay.addEventListener('mouseup', onPerspMouseUp);
+  perspOverlay.addEventListener('mouseleave', onPerspMouseUp);
+
+  drawPerspOverlay();
+}
+
+function removePerspOverlay() {
+  if (perspOverlay) {
+    perspOverlay.remove();
+    perspOverlay = null;
+    perspOverlayCtx = null;
+  }
+}
+
+function drawPerspOverlay() {
+  if (!perspOverlayCtx) return;
+  const ctx = perspOverlayCtx;
+  ctx.clearRect(0, 0, perspOverlay.width, perspOverlay.height);
+
+  // Рисуем деформированную штору
+  if (perspOriginalSrc) {
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, perspOverlay.width, perspOverlay.height);
+      drawWarpedImage(ctx, img, perspCorners);
+      drawPerspHandles(ctx);
+    };
+    img.src = perspOriginalSrc;
+  } else {
+    drawPerspHandles(ctx);
+  }
+}
+
+function drawPerspHandles(ctx) {
+  const [TL, TR, BR, BL] = perspCorners;
+
+  // Рамка
+  ctx.beginPath();
+  ctx.moveTo(TL.x, TL.y);
+  ctx.lineTo(TR.x, TR.y);
+  ctx.lineTo(BR.x, BR.y);
+  ctx.lineTo(BL.x, BL.y);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(0,120,255,0.8)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Угловые точки
+  perspCorners.forEach((pt, i) => {
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = perspDragging === i ? '#ff4400' : '#0078ff';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+}
+
+// ---- Mesh warp ----
+function drawWarpedImage(ctx, img, corners) {
+  const [TL, TR, BR, BL] = corners;
+  const W = img.width;
+  const H = img.height;
+  const N = MESH_STEPS;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  for (let row = 0; row < N; row++) {
+    for (let col = 0; col < N; col++) {
+      // Добавляем небольшой overlap в UV-координатах
+      const pad = 0.5 / N;
+      const u0 = Math.max(0, col / N - pad);
+      const u1 = Math.min(1, (col + 1) / N + pad);
+      const v0 = Math.max(0, row / N - pad);
+      const v1 = Math.min(1, (row + 1) / N + pad);
+
+      const sx0 = u0 * W, sx1 = u1 * W;
+      const sy0 = v0 * H, sy1 = v1 * H;
+
+      const dst = [
+        bilinear(TL, TR, BR, BL, u0, v0),
+        bilinear(TL, TR, BR, BL, u1, v0),
+        bilinear(TL, TR, BR, BL, u1, v1),
+        bilinear(TL, TR, BR, BL, u0, v1),
+      ];
+
+      drawTriangle(ctx, img,
+        dst[0], dst[1], dst[2],
+        {x: sx0, y: sy0}, {x: sx1, y: sy0}, {x: sx1, y: sy1}
+      );
+      drawTriangle(ctx, img,
+        dst[0], dst[2], dst[3],
+        {x: sx0, y: sy0}, {x: sx1, y: sy1}, {x: sx0, y: sy1}
+      );
+    }
+  }
+}
+
+function bilinear(TL, TR, BR, BL, u, v) {
+  return {
+    x: (1-u)*(1-v)*TL.x + u*(1-v)*TR.x + u*v*BR.x + (1-u)*v*BL.x,
+    y: (1-u)*(1-v)*TL.y + u*(1-v)*TR.y + u*v*BR.y + (1-u)*v*BL.y,
+  };
+}
+
+function drawTriangle(ctx, img, d0, d1, d2, s0, s1, s2) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(d0.x, d0.y);
+  ctx.lineTo(d1.x, d1.y);
+  ctx.lineTo(d2.x, d2.y);
+  ctx.closePath();
+  ctx.clip();
+
+  const m = getAffineMatrix(
+    s0.x, s0.y, s1.x, s1.y, s2.x, s2.y,
+    d0.x, d0.y, d1.x, d1.y, d2.x, d2.y
+  );
+  if (m) {
+    ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    ctx.drawImage(img, -1, -1, img.width + 2, img.height + 2);
+  }
+  ctx.restore();
+}
+
+function getAffineMatrix(x0, y0, x1, y1, x2, y2, dx0, dy0, dx1, dy1, dx2, dy2) {
+  // Решаем систему для аффинного преобразования src → dst
+  const denom = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  if (Math.abs(denom) < 0.001) return null;
+
+  const a = ((dx1 - dx0) * (y2 - y0) - (dx2 - dx0) * (y1 - y0)) / denom;
+  const b = ((dx2 - dx0) * (x1 - x0) - (dx1 - dx0) * (x2 - x0)) / denom;
+  const c = ((dy1 - dy0) * (y2 - y0) - (dy2 - dy0) * (y1 - y0)) / denom;
+  const d = ((dy2 - dy0) * (x1 - x0) - (dy1 - dy0) * (x2 - x0)) / denom;
+  const e = dx0 - a * x0 - b * y0;
+  const f = dy0 - c * x0 - d * y0;
+
+  return [a, c, b, d, e, f];
+}
+
+// ---- Drag handlers ----
+function getPerspPoint(e) {
+  const rect = perspOverlay.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left),
+    y: (e.clientY - rect.top),
+  };
+}
+
+function onPerspMouseDown(e) {
+  const pt = getPerspPoint(e);
+  // Ищем ближайшую угловую точку
+  for (let i = 0; i < perspCorners.length; i++) {
+    const dx = pt.x - perspCorners[i].x;
+    const dy = pt.y - perspCorners[i].y;
+    if (Math.sqrt(dx*dx + dy*dy) < 16) {
+      perspDragging = i;
+      return;
+    }
+  }
+}
+
+function onPerspMouseMove(e) {
+  if (perspDragging === null) return;
+  const pt = getPerspPoint(e);
+  perspCorners[perspDragging] = pt;
+  drawPerspOverlay();
+}
+
+function onPerspMouseUp() {
+  perspDragging = null;
+  drawPerspOverlay();
+}
+
+// ---- Применить результат ----
+function applyPerspective() {
+  if (!perspTarget || !perspOriginalSrc) return;
+  saveHistory();
+
+  const img = new Image();
+  img.onload = () => {
+    // Вычисляем bounding box деформированной шторы
+    const xs = perspCorners.map(p => p.x);
+    const ys = perspCorners.map(p => p.y);
+    const minX = Math.floor(Math.min(...xs));
+    const minY = Math.floor(Math.min(...ys));
+    const maxX = Math.ceil(Math.max(...xs));
+    const maxY = Math.ceil(Math.max(...ys));
+    const outW = maxX - minX;
+    const outH = maxY - minY;
+
+    // Смещаем углы относительно bounding box
+    const localCorners = perspCorners.map(p => ({ x: p.x - minX, y: p.y - minY }));
+
+    const out = document.createElement('canvas');
+    out.width = outW;
+    out.height = outH;
+    const outCtx = out.getContext('2d');
+    drawWarpedImage(outCtx, img, localCorners);
+
+    const dataUrl = out.toDataURL('image/png');
+    fabric.Image.fromURL(dataUrl, (newImg) => {
+      newImg.set({
+        left: minX,
+        top: minY,
+        scaleX: 1,
+        scaleY: 1,
+        selectable: true,
+        evented: true,
+        hasControls: true,
+        hasBorders: true,
+        cornerColor: '#000000',
+        cornerStrokeColor: '#000000',
+        cornerSize: 10,
+        transparentCorners: false,
+        opacity: 1,
+      });
+      newImg._curtainOriginal = newImg.getElement().cloneNode();
+
+      historyPaused = true;
+      canvas.remove(perspTarget);
+      canvas.add(newImg);
+      canvas.setActiveObject(newImg);
+      historyPaused = false;
+
+      disablePerspective();
+      setTool('select');
+      canvas.renderAll();
+      setStatus('Перспектива применена · Можно двигать и масштабировать');
+    });
+  };
+  img.src = perspOriginalSrc;
+}
+
+// =========================================
+// OBJECT ACTIONS
+// =========================================
+function clearAll() {
+  if (!confirm('Удалить все шторы с холста?')) return;
+  saveHistory();
+  canvas.getObjects().slice().forEach(obj => canvas.remove(obj));
+  canvas.renderAll();
+  setStatus('Холст очищен');
+}
+
+function deleteSelected() {
+  const obj = canvas.getActiveObject();
+  if (obj) { canvas.remove(obj); canvas.renderAll(); setStatus('Штора удалена'); }
+}
+
+function flipCurtain() {
+  const obj = canvas.getActiveObject();
+  if (!obj) return;
+  obj.set('flipX', !obj.flipX);
+  canvas.renderAll();
+  saveHistory();
+}
+
+function duplicateSelected() {
+  const obj = canvas.getActiveObject();
+  if (!obj) return;
+  obj.clone((cloned) => {
+    cloned.set({ left: obj.left + 20, top: obj.top + 20 });
+    canvas.add(cloned);
+    canvas.setActiveObject(cloned);
+    canvas.renderAll();
+  });
+}
+
+function bringForward() {
+  const obj = canvas.getActiveObject();
+  if (obj) { canvas.bringForward(obj); canvas.renderAll(); }
+}
+
+function sendBackward() {
+  const obj = canvas.getActiveObject();
+  if (obj) { canvas.sendBackwards(obj); canvas.renderAll(); }
+}
+
+// Keyboard delete
+document.addEventListener('keydown', (e) => {
+  if ((e.key === 'Delete' || e.key === 'Backspace') && !e.target.matches('input')) {
+    deleteSelected();
+  }
+});
+
+// =========================================
+// SAVE
+// =========================================
+function saveImage() {
+  const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 2 });
+  const a = document.createElement('a');
+  a.href = dataURL;
+  a.download = 'belaya-reka-vizualizatsiya.jpg';
+  a.click();
+  setStatus('Изображение сохранено');
+}
+
+// =========================================
+// STATUS
+// =========================================
+function setStatus(msg) {
+  document.getElementById('statusBar').textContent = msg;
+}
+
+// =========================================
+// LOAD DEFAULT CURTAIN (Base23.png if provided)
+// =========================================
+// Чтобы загрузить свои PNG автоматически — добавьте их пути сюда:
+// curtainTemplates[0].src = 'шторы/База23.png';
+// curtainTemplates[0].demo = false;
+// renderCurtainGrid();
+</script>
+</body>
+</html>
