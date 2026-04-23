@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#f5f2ee">
+<title>Визуализатор штор — Белая Река</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #f5f2ee;
+    --panel: #ffffff;
+    --accent: #8b6f5e;
+    --accent2: #c4a882;
+    --text: #2c2416;
+    --muted: #9e8e7e;
+    --border: #e0d8cf;
+    --canvas-bg: #ede9e3;
+    --danger: #b85c5c;
+    --danger-bg: #d4a5a5;
+    --success: #7dab7d;
+    --shadow: 0 2px 20px rgba(44,36,22,0.08);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    background: var(--bg);
+    font-family: 'Jost', sans-serif;
+    color: var(--text);
+    overflow: hidden;
+    position: fixed;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  /* ============ LAYOUT ============ */
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    width: 100vw;
+    position: relative;
+  }
+
+  /* ============ HEADER (top bar) ============ */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(var(--safe-top) + 6px) 8px 6px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    z-index: 20;
+  }
+  .topbar-left, .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .logo-m {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    letter-spacing: 0.03em;
+    color: var(--accent);
+    padding: 0 6px;
+    white-space: nowrap;
+  }
+  .logo-m span { color: var(--text); font-weight: 300; }
+
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.15s;
+    flex-shrink: 0;
+  }
+  .icon-btn:active { background: rgba(139,111,94,0.12); }
+  .icon-btn:disabled { opacity: 0.35; }
+  .icon-btn.primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  .icon-btn.primary:active { background: #7a5f4f; }
+  .icon-btn.danger { color: var(--danger); }
+
+  /* ============ CANVAS AREA ============ */
+  .canvas-wrap {
+    flex: 1;
+    background: var(--canvas-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+  }
+  #canvas-container {
+    position: relative;
+    overflow: visible;
+    box-shadow: 0 4px 20px rgba(44,36,22,0.15);
+  }
+  .canvas-empty {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    padding: 0 20px;
+  }
+  .canvas-empty-icon { font-size: 56px; opacity: 0.3; margin-bottom: 12px; }
+  .canvas-empty-text {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    color: var(--muted);
+    font-weight: 300;
+    line-height: 1.3;
+  }
+  .canvas-empty-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 8px;
+    opacity: 0.7;
+  }
+
+  /* ============ TOOLBAR (bottom under canvas) ============ */
+  .toolbar {
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 8px calc(var(--safe-bottom) / 2 + 8px) calc(var(--safe-bottom) + 8px);
+    flex-shrink: 0;
+    z-index: 15;
+  }
+  .tool-row {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+  }
+  .tool-btn-m {
+    flex: 1;
+    max-width: 110px;
+    min-height: 48px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    color: var(--text);
+    cursor: pointer;
+    padding: 4px;
+    transition: all 0.15s;
+  }
+  .tool-btn-m .tool-icon-m {
+    font-size: 20px;
+    line-height: 1;
+  }
+  .tool-btn-m:active { transform: scale(0.96); }
+  .tool-btn-m.active {
+    border-color: var(--accent);
+    background: rgba(139,111,94,0.1);
+    color: var(--accent);
+  }
+  .tool-btn-m:disabled { opacity: 0.4; }
+
+  /* Tool-specific contextual controls (eraser size / apply-cancel) */
+  .tool-context {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 4px 0;
+    margin-top: 6px;
+    border-top: 1px dashed var(--border);
+  }
+  .tool-context.visible { display: flex; }
+  .tool-context label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+  .tool-context input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent);
+  }
+  .ctx-btn {
+    padding: 8px 14px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    color: #fff;
+    cursor: pointer;
+    flex-shrink: 0;
+    min-height: 36px;
+  }
+  .ctx-btn.apply { background: var(--success); }
+  .ctx-btn.cancel { background: var(--danger); padding: 8px 12px; }
+
+  /* Status bar (short inline, only after action) */
+  #statusBar {
+    font-size: 10.5px;
+    color: var(--muted);
+    text-align: center;
+    padding: 4px 8px 0;
+    min-height: 14px;
+    line-height: 1.2;
+  }
+
+  /* ============ DRAWER (side panel) ============ */
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(44,36,22,0.35);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.22s, visibility 0.22s;
+    z-index: 30;
+    backdrop-filter: blur(2px);
+  }
+  .drawer-backdrop.open {
+    opacity: 1;
+    visibility: visible;
+  }
+  .drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: min(86vw, 340px);
+    background: var(--panel);
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 4px 0 24px rgba(44,36,22,0.15);
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(var(--safe-top) + 10px) 14px 10px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .drawer-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    color: var(--accent);
+  }
+  .drawer-title span { color: var(--text); font-weight: 300; }
+
+  .drawer-body {
+    flex: 1;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .section {
+    padding: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* Catalog tabs */
+  .cat-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+    margin: 0 -4px 8px;
+    padding-left: 4px;
+    padding-right: 4px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab {
+    flex-shrink: 0;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    padding: 7px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 18px;
+    background: var(--panel);
+    color: var(--muted);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .cat-tab.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .cat-tab.empty { opacity: 0.4; }
+
+  .curtain-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+  }
+  .curtain-card {
+    background: #c8bfb5;
+    border: 1.5px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: border-color 0.15s, transform 0.1s;
+    position: relative;
+  }
+  .curtain-card:active { transform: scale(0.96); }
+  .curtain-card.active { border-color: var(--accent); }
+  .curtain-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+
+  /* Palette */
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+  }
+  .swatch {
+    aspect-ratio: 1;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: transform 0.1s;
+  }
+  .swatch:active { transform: scale(0.92); }
+  .swatch.active { border-color: var(--accent); transform: scale(1.08); }
+
+  .custom-color-wrap {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .custom-color-wrap label {
+    font-size: 11px;
+    color: var(--muted);
+    flex: 1;
+  }
+  input[type="color"] {
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid var(--border);
+    border-radius: 50%;
+    padding: 2px;
+    cursor: pointer;
+    background: none;
+  }
+  #eyedropperBtn {
+    background: none;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #eyedropperBtn.active {
+    border-color: var(--accent);
+    background: rgba(139,111,94,0.12);
+  }
+
+  /* Opacity */
+  .opacity-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  input[type="range"] {
+    flex: 1;
+    height: 4px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .opacity-val {
+    font-size: 12px;
+    color: var(--muted);
+    width: 40px;
+    text-align: right;
+  }
+
+  /* Actions list */
+  .actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .action-btn {
+    padding: 11px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+  }
+  .action-btn:active { background: rgba(139,111,94,0.06); }
+  .action-btn.danger { border-color: var(--danger-bg); color: var(--danger); }
+
+  /* Toast notification (для коротких сообщений) */
+  .toast {
+    position: fixed;
+    bottom: calc(var(--safe-bottom) + 100px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: rgba(44,36,22,0.92);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 100;
+    opacity: 0;
+    transition: all 0.25s;
+    pointer-events: none;
+    max-width: 85vw;
+    text-align: center;
+    backdrop-filter: blur(4px);
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Hidden inputs */
+  #fileInput, #curtainInput { display: none; }
+
+  /* Prevent iOS long-press / selection on canvas */
+  canvas {
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" onclick="openDrawer()" aria-label="Меню">☰</button>
+      <div class="logo-m">Белая Река <span>· визуализатор</span></div>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" id="btnUndo" onclick="undo()" disabled aria-label="Отмена">↩</button>
+      <button class="icon-btn primary" onclick="document.getElementById('fileInput').click()" aria-label="Загрузить фото">📷</button>
+      <button class="icon-btn" onclick="saveImage()" aria-label="Скачать">💾</button>
+      <button class="icon-btn danger" onclick="clearAll()" aria-label="Очистить">✕</button>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div class="canvas-wrap" id="canvasWrap">
+    <div class="canvas-empty" id="emptyHint">
+      <div class="canvas-empty-icon">🪟</div>
+      <div class="canvas-empty-text">Загрузите фото<br>вашей комнаты</div>
+      <div class="canvas-empty-sub">Нажмите 📷 наверху, затем откройте меню ☰ и выберите штору</div>
+    </div>
+    <div id="canvas-container">
+      <canvas id="c"></canvas>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <div class="tool-row">
+      <button class="tool-btn-m active" id="toolSelect" onclick="setTool('select')">
+        <span class="tool-icon-m">↖</span><span>Выбор</span>
+      </button>
+      <button class="tool-btn-m" id="toolEraser" onclick="setTool('eraser')">
+        <span class="tool-icon-m">🧹</span><span>Ластик</span>
+      </button>
+      <button class="tool-btn-m" id="toolPerspective" onclick="setTool('perspective')">
+        <span class="tool-icon-m">⬡</span><span>Искаж.</span>
+      </button>
+    </div>
+
+    <!-- Контекстные контролы ластика -->
+    <div class="tool-context" id="eraserControls">
+      <label>Размер</label>
+      <input type="range" id="eraserSize" min="2" max="40" value="10" step="1" oninput="updateEraserSize()">
+      <span class="opacity-val" id="eraserSizeVal">10</span>
+    </div>
+
+    <!-- Контекстные кнопки искажения -->
+    <div class="tool-context" id="perspectiveHint">
+      <button class="ctx-btn apply" onclick="applyPerspective()">✓ Применить</button>
+      <button class="ctx-btn cancel" onclick="setTool('select')">✕</button>
+    </div>
+
+    <div id="statusBar">Загрузите фото и откройте меню для выбора шторы</div>
+  </div>
+
+</div>
+
+<!-- DRAWER -->
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-header">
+    <div class="drawer-title">Белая Река <span>·</span></div>
+    <button class="icon-btn" onclick="closeDrawer()" aria-label="Закрыть">✕</button>
+  </div>
+  <div class="drawer-body">
+
+    <div class="section">
+      <div class="section-label">Шаблоны штор</div>
+      <div class="cat-tabs" id="catTabs"></div>
+      <div class="curtain-grid" id="curtainGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Цвет шторы</div>
+      <div class="palette" id="palette"></div>
+      <div class="custom-color-wrap">
+        <label>Свой цвет</label>
+        <input type="color" id="customColor" value="#ffffff" oninput="applyColor(this.value)">
+        <button id="eyedropperBtn" onclick="toggleEyedropper()" title="Взять цвет с фото">🩸</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Прозрачность</div>
+      <div class="opacity-row">
+        <input type="range" id="opacitySlider" min="10" max="100" value="100" oninput="applyOpacity(this.value)">
+        <span class="opacity-val" id="opacityVal">100%</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Действия</div>
+      <div class="actions-grid">
+        <button class="action-btn" onclick="flipCurtain()">↔ Отзерк.</button>
+        <button class="action-btn" onclick="duplicateSelected()">⧉ Копия</button>
+        <button class="action-btn" onclick="bringForward()">↑ Вперёд</button>
+        <button class="action-btn" onclick="sendBackward()">↓ Назад</button>
+        <button class="action-btn danger" onclick="deleteSelected(); closeDrawer();" style="grid-column: 1 / -1;">✕ Удалить штору</button>
+      </div>
+    </div>
+
+    <div style="height: 40px;"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<input type="file" id="fileInput" accept="image/*" onchange="loadRoom(event)">
+
+<script>
+// =========================================
+// FABRIC CANVAS INIT (touch-enabled)
+// =========================================
+const canvas = new fabric.Canvas('c', {
+  selection: true,
+  preserveObjectStacking: true,
+  allowTouchScrolling: false,
+  enableRetinaScaling: true,
+});
+
+// Native pinch-zoom + rotate on objects
+fabric.Object.prototype.set({
+  lockScalingFlip: false,
+  padding: 4,
+  cornerSize: 22,
+  cornerStyle: 'circle',
+  transparentCorners: false,
+  cornerColor: '#8b6f5e',
+  cornerStrokeColor: '#fff',
+  borderColor: '#8b6f5e',
+  borderScaleFactor: 1.5,
+  touchCornerSize: 36,  // large touch zones
+});
+
+canvas.wrapperEl.style.overflow = 'visible';
+canvas.upperCanvasEl.style.overflow = 'visible';
+canvas.lowerCanvasEl.style.overflow = 'visible';
+
+let currentTool = 'select';
+let currentColor = '#ffffff';
+let roomLoaded = false;
+let eyedropperActive = false;
+
+// =========================================
+// MULTI-TOUCH GESTURES (pinch-zoom + rotate двумя пальцами)
+// Fabric.js 5.x нативно не поддерживает — пишем свой handler
+// =========================================
+let gestureState = null; // { obj, startDist, startAngle, startScaleX, startScaleY, startObjAngle, startCenter }
+
+function getTouchDist(t1, t2) {
+  const dx = t2.clientX - t1.clientX;
+  const dy = t2.clientY - t1.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+function getTouchAngle(t1, t2) {
+  return Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * 180 / Math.PI;
+}
+function getTouchCenter(t1, t2) {
+  return {
+    x: (t1.clientX + t2.clientX) / 2,
+    y: (t1.clientY + t2.clientY) / 2,
+  };
+}
+
+function onGestureTouchStart(e) {
+  // Игнорируем если активен ластик/искажение
+  if (currentTool !== 'select') return;
+  if (e.touches.length !== 2) return;
+
+  // Определяем объект под центром двух пальцев
+  const rect = canvas.upperCanvasEl.getBoundingClientRect();
+  const center = getTouchCenter(e.touches[0], e.touches[1]);
+  const cx = (center.x - rect.left) / canvas.getZoom();
+  const cy = (center.y - rect.top) / canvas.getZoom();
+
+  let target = canvas.getActiveObject();
+  // Если под центром другой объект — берём его
+  const objs = canvas.getObjects().filter(o => o.type === 'image');
+  for (let i = objs.length - 1; i >= 0; i--) {
+    if (objs[i].containsPoint(new fabric.Point(cx, cy))) {
+      target = objs[i];
+      break;
+    }
+  }
+  if (!target || target.type !== 'image') return;
+
+  canvas.setActiveObject(target);
+  gestureState = {
+    obj: target,
+    startDist: getTouchDist(e.touches[0], e.touches[1]),
+    startAngle: getTouchAngle(e.touches[0], e.touches[1]),
+    startScaleX: target.scaleX,
+    startScaleY: target.scaleY,
+    startObjAngle: target.angle || 0,
+  };
+  // Отключаем перемещение объекта во время жеста
+  target.lockMovementX = true;
+  target.lockMovementY = true;
+  e.preventDefault();
+}
+
+function onGestureTouchMove(e) {
+  if (!gestureState) return;
+  if (e.touches.length !== 2) return;
+  e.preventDefault();
+
+  const curDist = getTouchDist(e.touches[0], e.touches[1]);
+  const curAngle = getTouchAngle(e.touches[0], e.touches[1]);
+
+  const scaleFactor = curDist / gestureState.startDist;
+  const angleDelta = curAngle - gestureState.startAngle;
+
+  const obj = gestureState.obj;
+  obj.set({
+    scaleX: gestureState.startScaleX * scaleFactor,
+    scaleY: gestureState.startScaleY * scaleFactor,
+    angle: gestureState.startObjAngle + angleDelta,
+  });
+  obj.setCoords();
+  canvas.renderAll();
+}
+
+function onGestureTouchEnd(e) {
+  if (!gestureState) return;
+  // Завершаем жест только когда оба пальца подняты
+  if (e.touches.length === 0) {
+    const obj = gestureState.obj;
+    obj.lockMovementX = false;
+    obj.lockMovementY = false;
+    obj.setCoords();
+    canvas.fire('object:modified', { target: obj });
+    canvas.renderAll();
+    gestureState = null;
+  }
+}
+
+// Вешаем на upper canvas (верхний слой где Fabric слушает события)
+const upperEl = canvas.upperCanvasEl;
+upperEl.addEventListener('touchstart', onGestureTouchStart, { passive: false });
+upperEl.addEventListener('touchmove', onGestureTouchMove, { passive: false });
+upperEl.addEventListener('touchend', onGestureTouchEnd, { passive: false });
+upperEl.addEventListener('touchcancel', onGestureTouchEnd, { passive: false });
+
+// =========================================
+// RESIZE CANVAS TO FILL SCREEN
+// =========================================
+function resizeCanvas() {
+  const wrap = document.getElementById('canvasWrap');
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+  if (!roomLoaded) {
+    canvas.setWidth(w);
+    canvas.setHeight(h);
+  } else if (canvas.backgroundImage) {
+    // Пересчёт масштаба фона если изменили ориентацию
+    fitBackgroundToScreen();
+  }
+  canvas.renderAll();
+}
+resizeCanvas();
+
+let resizeTimeout;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimeout);
+  resizeTimeout = setTimeout(resizeCanvas, 150);
+});
+window.addEventListener('orientationchange', () => {
+  setTimeout(resizeCanvas, 300);
+});
+
+function fitBackgroundToScreen() {
+  const wrap = document.getElementById('canvasWrap');
+  const maxW = wrap.clientWidth;
+  const maxH = wrap.clientHeight;
+  const img = canvas.backgroundImage;
+  if (!img) return;
+  const scaleW = maxW / img.width;
+  const scaleH = maxH / img.height;
+  const scale = Math.min(scaleW, scaleH, 1);
+  const W = Math.round(img.width * scale);
+  const H = Math.round(img.height * scale);
+  canvas.setWidth(W);
+  canvas.setHeight(H);
+  img.set({
+    scaleX: scale,
+    scaleY: scale,
+  });
+  canvas.renderAll();
+}
+
+// =========================================
+// DRAWER
+// =========================================
+const drawerEl = document.getElementById('drawer');
+const backdropEl = document.getElementById('drawerBackdrop');
+
+function openDrawer() {
+  drawerEl.classList.add('open');
+  backdropEl.classList.add('open');
+}
+function closeDrawer() {
+  drawerEl.classList.remove('open');
+  backdropEl.classList.remove('open');
+}
+
+// Close drawer on swipe-left (simple gesture)
+let drawerTouchStartX = null;
+drawerEl.addEventListener('touchstart', (e) => {
+  drawerTouchStartX = e.touches[0].clientX;
+}, { passive: true });
+drawerEl.addEventListener('touchmove', (e) => {
+  if (drawerTouchStartX === null) return;
+  const dx = e.touches[0].clientX - drawerTouchStartX;
+  if (dx < -50) {
+    closeDrawer();
+    drawerTouchStartX = null;
+  }
+}, { passive: true });
+drawerEl.addEventListener('touchend', () => { drawerTouchStartX = null; });
+
+// =========================================
+// PALETTE
+// =========================================
+const COLORS = [
+  '#ffffff','#f5f0eb','#e8ddd0','#d4c4b0','#c4a882',
+  '#b08060','#8b6f5e','#6b4f3f','#4a3020','#2c1a0e',
+  '#f2e8e0','#e0c8b8','#c9a090','#b07860','#8b5a48',
+  '#d4d0c8','#b8b4a8','#908c80','#686460','#404038',
+  '#e8e0d4','#c8c0b0','#a8a098','#888078','#685850',
+  '#d4e0d4','#b0c4b0','#88a888','#607860','#405840',
+  '#d4dce8','#b0bcd0','#8898b8','#6070a0','#404870',
+  '#e8d4e0','#d0b0c4','#b888a8','#a06888','#784858',
+  '#f8e8d0','#f0d0a8','#e0b880','#c89850','#a07830',
+  '#e0e8f0','#c0d0e8','#a0b8e0','#8098c8','#6078a8',
+];
+
+const paletteEl = document.getElementById('palette');
+COLORS.forEach(color => {
+  const sw = document.createElement('div');
+  sw.className = 'swatch';
+  sw.style.background = color;
+  sw.title = color;
+  sw.onclick = () => {
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    applyColor(color);
+  };
+  paletteEl.appendChild(sw);
+});
+
+// =========================================
+// CATALOG
+// =========================================
+let CATALOG = [];
+let activeCatIdx = 0;
+
+fetch('catalog.json?v=' + Date.now())
+  .then(r => r.json())
+  .then(data => {
+    CATALOG = data;
+    renderTabs();
+    renderGrid();
+  })
+  .catch(() => {
+    console.warn('catalog.json не найден');
+  });
+
+function renderTabs() {
+  const tabsEl = document.getElementById('catTabs');
+  tabsEl.innerHTML = '';
+  CATALOG.forEach((cat, i) => {
+    const tab = document.createElement('button');
+    tab.className = 'cat-tab' + (i === activeCatIdx ? ' active' : '') + (cat.items.length === 0 ? ' empty' : '');
+    tab.textContent = cat.name;
+    tab.onclick = () => {
+      activeCatIdx = i;
+      renderTabs();
+      renderGrid();
+    };
+    tabsEl.appendChild(tab);
+  });
+}
+
+function renderGrid() {
+  const grid = document.getElementById('curtainGrid');
+  grid.innerHTML = '';
+  const cat = CATALOG[activeCatIdx];
+  if (!cat) return;
+  const isHorizontal = cat.name === 'Карниз';
+  grid.style.gridTemplateColumns = isHorizontal ? '1fr' : '1fr 1fr 1fr';
+
+  if (cat.items.length === 0) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px 8px;color:var(--muted);font-size:12px;">Шаблоны скоро появятся</div>';
+    return;
+  }
+
+  cat.items.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'curtain-card';
+    card.id = `card_${activeCatIdx}_${i}`;
+    if (isHorizontal) card.style.height = '56px';
+    const img = document.createElement('img');
+    img.src = item.src;
+    img.alt = item.name;
+    img.crossOrigin = 'anonymous';
+    card.appendChild(img);
+    card.onclick = () => {
+      addCurtainToCanvas(item, activeCatIdx, i);
+      closeDrawer();
+    };
+    grid.appendChild(card);
+  });
+}
+
+// =========================================
+// ADD CURTAIN
+// =========================================
+function addCurtainToCanvas(template, catIdx, itemIdx) {
+  if (!template.src) return;
+  if (!roomLoaded) {
+    showToast('Сначала загрузите фото комнаты');
+    return;
+  }
+
+  document.querySelectorAll('.curtain-card').forEach(c => c.classList.remove('active'));
+  const card = document.getElementById(`card_${catIdx}_${itemIdx}`);
+  if (card) card.classList.add('active');
+
+  fabric.Image.fromURL(template.src, (img) => {
+    img._curtainOriginal = img.getElement().cloneNode();
+
+    const isCornice = CATALOG[catIdx]?.name === 'Карниз';
+    const roomH = canvas.backgroundImage
+      ? canvas.backgroundImage.height * canvas.backgroundImage.scaleY
+      : canvas.getHeight();
+    const roomW = canvas.getWidth();
+    const scale = isCornice
+      ? (roomW * 0.8) / img.width
+      : (roomH * 0.6) / img.height;
+
+    img.set({
+      left: canvas.getWidth() / 2 - (img.width * scale) / 2,
+      top: isCornice ? 10 : 10,
+      scaleX: scale,
+      scaleY: scale,
+      selectable: true,
+      evented: true,
+      hasControls: true,
+      hasBorders: true,
+    });
+
+    img._curtainColor = currentColor;
+    applyTintToImage(img, currentColor);
+
+    canvas.add(img);
+    canvas.setActiveObject(img);
+    canvas.renderAll();
+    showToast('Штора добавлена · тяните пальцами чтобы переместить');
+  }, { crossOrigin: 'anonymous' });
+}
+
+// =========================================
+// LOAD ROOM BACKGROUND
+// =========================================
+function loadRoom(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    fabric.Image.fromURL(e.target.result, (img) => {
+      const wrap = document.getElementById('canvasWrap');
+      const maxW = wrap.clientWidth;
+      const maxH = wrap.clientHeight;
+      const scaleW = maxW / img.width;
+      const scaleH = maxH / img.height;
+      const scale = Math.min(scaleW, scaleH, 1);
+      const W = Math.round(img.width * scale);
+      const H = Math.round(img.height * scale);
+
+      canvas.setWidth(W);
+      canvas.setHeight(H);
+
+      canvas.setBackgroundImage(img, canvas.renderAll.bind(canvas), {
+        scaleX: scale,
+        scaleY: scale,
+        originX: 'left',
+        originY: 'top',
+      });
+
+      roomLoaded = true;
+      document.getElementById('emptyHint').style.display = 'none';
+      setStatus('Комната загружена · откройте меню ☰ и выберите штору');
+    });
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+// =========================================
+// EYEDROPPER — через тап по фону (getImageData)
+// Работает на всех мобильных
+// =========================================
+function toggleEyedropper() {
+  eyedropperActive = !eyedropperActive;
+  const btn = document.getElementById('eyedropperBtn');
+  btn.classList.toggle('active', eyedropperActive);
+  if (eyedropperActive) {
+    closeDrawer();
+    showToast('Тапните по фото чтобы взять цвет');
+  }
+}
+
+canvas.on('mouse:down', (opt) => {
+  if (!eyedropperActive) return;
+  const pt = canvas.getPointer(opt.e);
+  pickColorAt(pt.x, pt.y);
+});
+
+function pickColorAt(x, y) {
+  const img = canvas.backgroundImage;
+  if (!img) {
+    eyedropperActive = false;
+    document.getElementById('eyedropperBtn').classList.remove('active');
+    return;
+  }
+  // Draw background on a temp canvas and read pixel
+  const tmp = document.createElement('canvas');
+  tmp.width = canvas.getWidth();
+  tmp.height = canvas.getHeight();
+  const ctx = tmp.getContext('2d');
+  ctx.drawImage(
+    img.getElement(),
+    img.left || 0,
+    img.top || 0,
+    img.width * img.scaleX,
+    img.height * img.scaleY
+  );
+  const px = Math.max(0, Math.min(tmp.width - 1, Math.round(x)));
+  const py = Math.max(0, Math.min(tmp.height - 1, Math.round(y)));
+  const data = ctx.getImageData(px, py, 1, 1).data;
+  const hex = '#' + [data[0], data[1], data[2]].map(v => v.toString(16).padStart(2, '0')).join('');
+  document.getElementById('customColor').value = hex;
+  applyColor(hex);
+  eyedropperActive = false;
+  document.getElementById('eyedropperBtn').classList.remove('active');
+  showToast('Цвет взят: ' + hex);
+}
+
+// =========================================
+// COLOR TINT (same as desktop)
+// =========================================
+function applyTintToImage(fabricImg, color) {
+  const el = fabricImg._curtainOriginal || fabricImg._originalElement || fabricImg.getElement();
+  const w = el.naturalWidth || el.width;
+  const h = el.naturalHeight || el.height;
+
+  const offscreen = document.createElement('canvas');
+  offscreen.width = w;
+  offscreen.height = h;
+  const ctx = offscreen.getContext('2d');
+  ctx.drawImage(el, 0, 0, w, h);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, w, h);
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(el, 0, 0, w, h);
+
+  const result = new Image();
+  result.onload = () => {
+    fabricImg.filters = [];
+    fabricImg.setElement(result);
+    fabricImg.applyFilters();
+    canvas.renderAll();
+  };
+  result.src = offscreen.toDataURL('image/png');
+}
+
+function applyColor(color) {
+  currentColor = color;
+  document.getElementById('customColor').value = color;
+  const obj = canvas.getActiveObject();
+  if (obj && obj.type === 'image') {
+    obj._curtainColor = color;
+    applyTintToImage(obj, color);
+    canvas.renderAll();
+  }
+}
+
+// =========================================
+// OPACITY
+// =========================================
+function applyOpacity(val) {
+  document.getElementById('opacityVal').textContent = val + '%';
+  const obj = canvas.getActiveObject();
+  if (obj) {
+    obj.set('opacity', val / 100);
+    canvas.renderAll();
+  }
+}
+
+canvas.on('selection:created', updatePanelForSelection);
+canvas.on('selection:updated', updatePanelForSelection);
+canvas.on('selection:cleared', () => setStatus('Тапните на штору чтобы выделить'));
+
+function updatePanelForSelection() {
+  const obj = canvas.getActiveObject();
+  if (obj) {
+    const pct = Math.round((obj.opacity || 1) * 100);
+    document.getElementById('opacitySlider').value = pct;
+    document.getElementById('opacityVal').textContent = pct + '%';
+    setStatus('Объект выбран · pinch для масштаба, 2 пальца для поворота');
+  }
+}
+
+// =========================================
+// TOOLS
+// =========================================
+function setTool(tool) {
+  if (perspMode && tool !== 'perspective') disablePerspective();
+
+  currentTool = tool;
+  document.querySelectorAll('.tool-btn-m').forEach(b => b.classList.remove('active'));
+  document.getElementById('toolSelect').classList.toggle('active', tool === 'select');
+  document.getElementById('toolEraser').classList.toggle('active', tool === 'eraser');
+  document.getElementById('toolPerspective').classList.toggle('active', tool === 'perspective');
+  document.getElementById('eraserControls').classList.toggle('visible', tool === 'eraser');
+  document.getElementById('perspectiveHint').classList.toggle('visible', tool === 'perspective');
+
+  if (tool === 'eraser') {
+    canvas.isDrawingMode = false;
+    enableEraser();
+    setStatus(eraserLockedTarget
+      ? 'Ластик: стираем выбранный слой'
+      : 'Ластик: выберите штору заранее, затем проведите пальцем');
+  } else if (tool === 'perspective') {
+    disableEraser();
+    canvas.isDrawingMode = false;
+    enablePerspective();
+  } else {
+    disableEraser();
+    canvas.isDrawingMode = false;
+    setStatus('Тапните на штору · pinch для масштаба и поворота');
+  }
+}
+
+function updateEraserSize() {
+  const size = parseInt(document.getElementById('eraserSize').value);
+  document.getElementById('eraserSizeVal').textContent = size;
+}
+
+// =========================================
+// HISTORY / UNDO
+// =========================================
+const history = [];
+const MAX_HISTORY = 20;
+let historyPaused = false;
+
+function saveHistory() {
+  if (historyPaused) return;
+  const json = canvas.toJSON(['selectable','evented','cornerColor','cornerSize','transparentCorners','cornerStyle','touchCornerSize']);
+  history.push(JSON.stringify(json));
+  if (history.length > MAX_HISTORY) history.shift();
+  updateUndoBtn();
+}
+
+function undo() {
+  if (history.length < 2) {
+    if (history.length === 1) {
+      history.pop();
+      historyPaused = true;
+      canvas.clear();
+      canvas.renderAll();
+      historyPaused = false;
+      updateUndoBtn();
+      showToast('Отменено');
+    }
+    return;
+  }
+  history.pop();
+  const json = JSON.parse(history[history.length - 1]);
+  historyPaused = true;
+  // Сбрасываем ссылки ластика/перспективы — после loadFromJSON старые объекты "умирают"
+  eraserTarget = null;
+  eraserLockedTarget = null;
+  offscreenCanvas = null;
+  offscreenCtx = null;
+  isErasing = false;
+  canvas.loadFromJSON(json, () => {
+    // Если ластик активен — применяем его режим к новым объектам
+    if (eraserActive) {
+      canvas.selection = false;
+      canvas.forEachObject(o => {
+        o._eraserSelectable = o.selectable;
+        o.selectable = false;
+        o.evented = false;
+      });
+    }
+    canvas.renderAll();
+    historyPaused = false;
+    updateUndoBtn();
+    showToast('Отменено');
+  });
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('btnUndo');
+  btn.disabled = history.length === 0;
+}
+
+const originalAdd = canvas.add.bind(canvas);
+canvas.add = function(...args) {
+  if (!historyPaused) saveHistory();
+  return originalAdd(...args);
+};
+canvas.on('object:modified', saveHistory);
+
+const originalRemove = canvas.remove.bind(canvas);
+canvas.remove = function(...args) {
+  if (!historyPaused) saveHistory();
+  return originalRemove(...args);
+};
+
+// =========================================
+// ERASER (с touch support)
+// =========================================
+let eraserActive = false;
+let eraserTarget = null;
+let eraserLockedTarget = null;
+let offscreenCanvas = null;
+let offscreenCtx = null;
+let isErasing = false;
+
+// Блокировщик touch-событий — перехватывает события ДО того как Fabric их обработает
+// Используется в режиме ластика чтобы Fabric не двигал объект
+function eraserTouchBlocker(e) {
+  if (!eraserActive) return;
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+  // preventDefault для touchstart/move блокирует системный скролл и pinch
+  if (e.cancelable) e.preventDefault();
+}
+
+function enableEraser() {
+  eraserActive = true;
+  const selected = canvas.getActiveObject();
+  eraserLockedTarget = (selected && selected.type === 'image') ? selected : null;
+
+  canvas.selection = false;
+  canvas.discardActiveObject();
+  canvas.forEachObject(o => { o._eraserSelectable = o.selectable; o.selectable = false; o.evented = false; });
+  canvas.renderAll();
+
+  const upper = canvas.upperCanvasEl;
+  upper.style.cursor = 'crosshair';
+
+  // КРИТИЧНО: блокировщик в capture-фазе — перехватываем touch-события
+  // раньше чем Fabric.js и раньше чем gesture-handler
+  upper.addEventListener('touchstart', eraserTouchBlocker, { capture: true, passive: false });
+  upper.addEventListener('touchmove', eraserTouchBlocker, { capture: true, passive: false });
+  upper.addEventListener('touchend', eraserTouchBlocker, { capture: true, passive: false });
+  upper.addEventListener('touchcancel', eraserTouchBlocker, { capture: true, passive: false });
+
+  upper.addEventListener('pointerdown', onEraserStart);
+  upper.addEventListener('pointermove', onEraserMove);
+  upper.addEventListener('pointerup', onEraserEnd);
+  upper.addEventListener('pointercancel', onEraserEnd);
+  upper.addEventListener('pointerleave', onEraserEnd);
+}
+
+function disableEraser() {
+  eraserActive = false;
+  eraserLockedTarget = null;
+  canvas.selection = true;
+  canvas.forEachObject(o => {
+    o.selectable = o._eraserSelectable !== undefined ? o._eraserSelectable : true;
+    o.evented = true;
+  });
+  const upper = canvas.upperCanvasEl;
+  upper.style.cursor = 'default';
+
+  upper.removeEventListener('touchstart', eraserTouchBlocker, { capture: true });
+  upper.removeEventListener('touchmove', eraserTouchBlocker, { capture: true });
+  upper.removeEventListener('touchend', eraserTouchBlocker, { capture: true });
+  upper.removeEventListener('touchcancel', eraserTouchBlocker, { capture: true });
+
+  upper.removeEventListener('pointerdown', onEraserStart);
+  upper.removeEventListener('pointermove', onEraserMove);
+  upper.removeEventListener('pointerup', onEraserEnd);
+  upper.removeEventListener('pointercancel', onEraserEnd);
+  upper.removeEventListener('pointerleave', onEraserEnd);
+  offscreenCanvas = null;
+  offscreenCtx = null;
+  eraserTarget = null;
+}
+
+function getCanvasPoint(e) {
+  const rect = canvas.upperCanvasEl.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / canvas.getZoom(),
+    y: (e.clientY - rect.top) / canvas.getZoom(),
+  };
+}
+
+function findTopmostImageAt(x, y) {
+  const objs = canvas.getObjects().filter(o => o.type === 'image');
+  for (let i = objs.length - 1; i >= 0; i--) {
+    const o = objs[i];
+    if (o.containsPoint(new fabric.Point(x, y))) return o;
+  }
+  return null;
+}
+
+function onEraserStart(e) {
+  e.stopPropagation();
+  e.preventDefault();
+  const pt = getCanvasPoint(e);
+
+  // Если locked target больше не на canvas (например после undo) — сбрасываем
+  if (eraserLockedTarget && canvas.getObjects().indexOf(eraserLockedTarget) === -1) {
+    eraserLockedTarget = null;
+  }
+
+  eraserTarget = eraserLockedTarget || findTopmostImageAt(pt.x, pt.y);
+  if (!eraserTarget) return;
+
+  // Двойная проверка что объект реально на canvas
+  if (canvas.getObjects().indexOf(eraserTarget) === -1) {
+    eraserTarget = findTopmostImageAt(pt.x, pt.y);
+    if (!eraserTarget) return;
+  }
+
+  isErasing = true;
+  const el = eraserTarget._originalElement || eraserTarget._element || eraserTarget.getElement();
+  const w = el.naturalWidth || el.width;
+  const h = el.naturalHeight || el.height;
+  offscreenCanvas = document.createElement('canvas');
+  offscreenCanvas.width = w;
+  offscreenCanvas.height = h;
+  offscreenCtx = offscreenCanvas.getContext('2d');
+  offscreenCtx.drawImage(el, 0, 0, w, h);
+  eraseAt(pt.x, pt.y);
+}
+
+function onEraserMove(e) {
+  e.stopPropagation();
+  if (!isErasing || !eraserTarget) return;
+  const pt = getCanvasPoint(e);
+  eraseAt(pt.x, pt.y);
+}
+
+function onEraserEnd(e) {
+  if (e) e.stopPropagation();
+  if (!isErasing || !eraserTarget) return;
+  isErasing = false;
+
+  const savedFilters = eraserTarget.filters ? [...eraserTarget.filters] : [];
+  const savedProps = {
+    left: eraserTarget.left,
+    top: eraserTarget.top,
+    scaleX: eraserTarget.scaleX,
+    scaleY: eraserTarget.scaleY,
+    angle: eraserTarget.angle,
+    opacity: eraserTarget.opacity,
+  };
+
+  const dataUrl = offscreenCanvas.toDataURL('image/png');
+  fabric.Image.fromURL(dataUrl, (newImg) => {
+    newImg.set({
+      ...savedProps,
+      selectable: true,
+      evented: true,
+    });
+    newImg.filters = savedFilters;
+    newImg.applyFilters();
+
+    historyPaused = true;
+    const objects = canvas.getObjects();
+    const zIndex = objects.indexOf(eraserTarget);
+    canvas.remove(eraserTarget);
+    canvas.add(newImg);
+    if (zIndex >= 0) canvas.moveTo(newImg, zIndex);
+    canvas.renderAll();
+    historyPaused = false;
+    eraserTarget = newImg;
+    eraserLockedTarget = newImg;
+    offscreenCanvas = null;
+    offscreenCtx = null;
+    saveHistory();
+  });
+}
+
+function eraseAt(canvasX, canvasY) {
+  if (!eraserTarget || !offscreenCtx) return;
+  const obj = eraserTarget;
+  const el = eraserTarget.getElement();
+  const w = el.naturalWidth || el.width;
+  const h = el.naturalHeight || el.height;
+
+  const matrix = obj.calcTransformMatrix();
+  const invMatrix = fabric.util.invertTransform(matrix);
+  const localPt = fabric.util.transformPoint({ x: canvasX, y: canvasY }, invMatrix);
+
+  const imgX = (localPt.x + obj.width / 2) * (w / obj.width);
+  const imgY = (localPt.y + obj.height / 2) * (h / obj.height);
+
+  const size = parseInt(document.getElementById('eraserSize').value);
+  const radius = size * (w / (obj.width * obj.scaleX));
+
+  offscreenCtx.globalCompositeOperation = 'destination-out';
+  offscreenCtx.beginPath();
+  offscreenCtx.arc(imgX, imgY, radius, 0, Math.PI * 2);
+  offscreenCtx.fill();
+  offscreenCtx.globalCompositeOperation = 'source-over';
+
+  const previewUrl = offscreenCanvas.toDataURL('image/png');
+  const imgEl = new Image();
+  imgEl.onload = () => {
+    eraserTarget._element = imgEl;
+    canvas.renderAll();
+  };
+  imgEl.src = previewUrl;
+}
+
+// =========================================
+// PERSPECTIVE (с touch support и крупными хендлами)
+// =========================================
+let perspMode = false;
+let perspTarget = null;
+let perspOriginalSrc = null;
+let perspOriginalOpacity = 1;
+let perspOriginalColor = '#ffffff';
+let perspCorners = [];
+let perspDragging = null;
+const MESH_STEPS = 16; // чуть меньше чем на десктопе для производительности
+const HANDLE_RADIUS = 14;       // визуальный радиус
+const HANDLE_TOUCH_RADIUS = 30; // радиус зоны тапа (пальцем)
+
+function enablePerspective() {
+  const obj = canvas.getActiveObject();
+  if (!obj || obj.type !== 'image') {
+    showToast('Сначала выберите штору в режиме Выбор');
+    setTool('select');
+    return;
+  }
+
+  perspTarget = obj;
+  perspMode = true;
+
+  const el = obj._curtainOriginal || obj.getElement();
+  const tmp = document.createElement('canvas');
+  tmp.width = el.naturalWidth || el.width;
+  tmp.height = el.naturalHeight || el.height;
+  tmp.getContext('2d').drawImage(el, 0, 0);
+  perspOriginalSrc = tmp.toDataURL('image/png');
+
+  const br = obj.getBoundingRect(true, true);
+  perspCorners = [
+    { x: br.left,            y: br.top },
+    { x: br.left + br.width, y: br.top },
+    { x: br.left + br.width, y: br.top + br.height },
+    { x: br.left,            y: br.top + br.height },
+  ];
+
+  perspOriginalOpacity = obj.opacity !== undefined ? obj.opacity : 1;
+  perspOriginalColor = obj._curtainColor || '#ffffff';
+
+  obj.set('opacity', 0);
+  canvas.renderAll();
+
+  createPerspOverlay();
+  setStatus('Тяните угловые точки пальцем · затем Применить');
+}
+
+function disablePerspective() {
+  perspMode = false;
+  perspDragging = null;
+  removePerspOverlay();
+  if (perspTarget) {
+    perspTarget.set('opacity', perspOriginalOpacity);
+    canvas.renderAll();
+  }
+  perspTarget = null;
+  perspOriginalSrc = null;
+  perspOriginalOpacity = 1;
+  perspCorners = [];
+}
+
+let perspOverlay = null;
+let perspOverlayCtx = null;
+let cachedWarpImg = null; // кэшированное изображение для быстрой перерисовки
+
+function createPerspOverlay() {
+  removePerspOverlay();
+  const container = document.getElementById('canvas-container');
+  perspOverlay = document.createElement('canvas');
+  perspOverlay.width = canvas.getWidth();
+  perspOverlay.height = canvas.getHeight();
+  perspOverlay.style.cssText = `position:absolute;top:0;left:0;z-index:10;touch-action:none;`;
+  container.appendChild(perspOverlay);
+  perspOverlayCtx = perspOverlay.getContext('2d');
+
+  perspOverlay.addEventListener('pointerdown', onPerspPointerDown);
+  perspOverlay.addEventListener('pointermove', onPerspPointerMove);
+  perspOverlay.addEventListener('pointerup', onPerspPointerUp);
+  perspOverlay.addEventListener('pointercancel', onPerspPointerUp);
+
+  // Pre-render colored image once
+  const img = new Image();
+  img.onload = () => {
+    const colored = document.createElement('canvas');
+    colored.width = img.width;
+    colored.height = img.height;
+    const cCtx = colored.getContext('2d');
+    cCtx.drawImage(img, 0, 0);
+    if (perspOriginalColor && perspOriginalColor !== '#ffffff') {
+      cCtx.globalCompositeOperation = 'multiply';
+      cCtx.fillStyle = perspOriginalColor;
+      cCtx.fillRect(0, 0, colored.width, colored.height);
+      cCtx.globalCompositeOperation = 'destination-in';
+      cCtx.drawImage(img, 0, 0);
+    }
+    cachedWarpImg = colored;
+    drawPerspOverlay();
+  };
+  img.src = perspOriginalSrc;
+}
+
+function removePerspOverlay() {
+  if (perspOverlay) {
+    perspOverlay.remove();
+    perspOverlay = null;
+    perspOverlayCtx = null;
+    cachedWarpImg = null;
+  }
+}
+
+function drawPerspOverlay() {
+  if (!perspOverlayCtx) return;
+  const ctx = perspOverlayCtx;
+  ctx.clearRect(0, 0, perspOverlay.width, perspOverlay.height);
+
+  if (cachedWarpImg) {
+    ctx.globalAlpha = perspOriginalOpacity;
+    drawWarpedImage(ctx, cachedWarpImg, perspCorners);
+    ctx.globalAlpha = 1;
+  }
+  drawPerspHandles(ctx);
+}
+
+function drawPerspHandles(ctx) {
+  const [TL, TR, BR, BL] = perspCorners;
+  ctx.beginPath();
+  ctx.moveTo(TL.x, TL.y);
+  ctx.lineTo(TR.x, TR.y);
+  ctx.lineTo(BR.x, BR.y);
+  ctx.lineTo(BL.x, BL.y);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(0,120,255,0.85)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  perspCorners.forEach((pt, i) => {
+    // Outer ring (touch hint)
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, HANDLE_RADIUS + 6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(0,120,255,0.15)';
+    ctx.fill();
+    // Solid handle
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, HANDLE_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = perspDragging === i ? '#ff4400' : '#0078ff';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  });
+}
+
+function drawWarpedImage(ctx, img, corners) {
+  const [TL, TR, BR, BL] = corners;
+  const W = img.width;
+  const H = img.height;
+  const N = MESH_STEPS;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'medium'; // medium быстрее чем high на мобилке
+
+  for (let row = 0; row < N; row++) {
+    for (let col = 0; col < N; col++) {
+      const pad = 0.5 / N;
+      const u0 = Math.max(0, col / N - pad);
+      const u1 = Math.min(1, (col + 1) / N + pad);
+      const v0 = Math.max(0, row / N - pad);
+      const v1 = Math.min(1, (row + 1) / N + pad);
+
+      const sx0 = u0 * W, sx1 = u1 * W;
+      const sy0 = v0 * H, sy1 = v1 * H;
+
+      const dst = [
+        bilinear(TL, TR, BR, BL, u0, v0),
+        bilinear(TL, TR, BR, BL, u1, v0),
+        bilinear(TL, TR, BR, BL, u1, v1),
+        bilinear(TL, TR, BR, BL, u0, v1),
+      ];
+
+      drawTriangle(ctx, img, dst[0], dst[1], dst[2],
+        {x: sx0, y: sy0}, {x: sx1, y: sy0}, {x: sx1, y: sy1});
+      drawTriangle(ctx, img, dst[0], dst[2], dst[3],
+        {x: sx0, y: sy0}, {x: sx1, y: sy1}, {x: sx0, y: sy1});
+    }
+  }
+}
+
+function bilinear(TL, TR, BR, BL, u, v) {
+  return {
+    x: (1-u)*(1-v)*TL.x + u*(1-v)*TR.x + u*v*BR.x + (1-u)*v*BL.x,
+    y: (1-u)*(1-v)*TL.y + u*(1-v)*TR.y + u*v*BR.y + (1-u)*v*BL.y,
+  };
+}
+
+function drawTriangle(ctx, img, d0, d1, d2, s0, s1, s2) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(d0.x, d0.y);
+  ctx.lineTo(d1.x, d1.y);
+  ctx.lineTo(d2.x, d2.y);
+  ctx.closePath();
+  ctx.clip();
+  const m = getAffineMatrix(
+    s0.x, s0.y, s1.x, s1.y, s2.x, s2.y,
+    d0.x, d0.y, d1.x, d1.y, d2.x, d2.y
+  );
+  if (m) {
+    ctx.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+    ctx.drawImage(img, -1, -1, img.width + 2, img.height + 2);
+  }
+  ctx.restore();
+}
+
+function getAffineMatrix(x0, y0, x1, y1, x2, y2, dx0, dy0, dx1, dy1, dx2, dy2) {
+  const denom = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0);
+  if (Math.abs(denom) < 0.001) return null;
+  const a = ((dx1 - dx0) * (y2 - y0) - (dx2 - dx0) * (y1 - y0)) / denom;
+  const b = ((dx2 - dx0) * (x1 - x0) - (dx1 - dx0) * (x2 - x0)) / denom;
+  const c = ((dy1 - dy0) * (y2 - y0) - (dy2 - dy0) * (y1 - y0)) / denom;
+  const d = ((dy2 - dy0) * (x1 - x0) - (dy1 - dy0) * (x2 - x0)) / denom;
+  const e = dx0 - a * x0 - b * y0;
+  const f = dy0 - c * x0 - d * y0;
+  return [a, c, b, d, e, f];
+}
+
+function getPerspPoint(e) {
+  const rect = perspOverlay.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left),
+    y: (e.clientY - rect.top),
+  };
+}
+
+function onPerspPointerDown(e) {
+  e.preventDefault();
+  const pt = getPerspPoint(e);
+  for (let i = 0; i < perspCorners.length; i++) {
+    const dx = pt.x - perspCorners[i].x;
+    const dy = pt.y - perspCorners[i].y;
+    if (Math.sqrt(dx*dx + dy*dy) < HANDLE_TOUCH_RADIUS) {
+      perspDragging = i;
+      perspOverlay.setPointerCapture(e.pointerId);
+      drawPerspOverlay();
+      return;
+    }
+  }
+}
+
+function onPerspPointerMove(e) {
+  if (perspDragging === null) return;
+  e.preventDefault();
+  const pt = getPerspPoint(e);
+  perspCorners[perspDragging] = pt;
+  drawPerspOverlay();
+}
+
+function onPerspPointerUp(e) {
+  if (perspDragging !== null) {
+    try { perspOverlay.releasePointerCapture(e.pointerId); } catch(_) {}
+  }
+  perspDragging = null;
+  drawPerspOverlay();
+}
+
+function applyPerspective() {
+  if (!perspTarget || !perspOriginalSrc) return;
+  saveHistory();
+
+  const img = new Image();
+  img.onload = () => {
+    const xs = perspCorners.map(p => p.x);
+    const ys = perspCorners.map(p => p.y);
+    const minX = Math.floor(Math.min(...xs));
+    const minY = Math.floor(Math.min(...ys));
+    const maxX = Math.ceil(Math.max(...xs));
+    const maxY = Math.ceil(Math.max(...ys));
+    const outW = maxX - minX;
+    const outH = maxY - minY;
+    const localCorners = perspCorners.map(p => ({ x: p.x - minX, y: p.y - minY }));
+
+    const out = document.createElement('canvas');
+    out.width = outW;
+    out.height = outH;
+    const outCtx = out.getContext('2d');
+    drawWarpedImage(outCtx, img, localCorners);
+    const dataUrl = out.toDataURL('image/png');
+
+    const zIndex = canvas.getObjects().indexOf(perspTarget);
+
+    fabric.Image.fromURL(dataUrl, (newImg) => {
+      newImg.set({
+        left: minX,
+        top: minY,
+        scaleX: 1,
+        scaleY: 1,
+        selectable: true,
+        evented: true,
+        hasControls: true,
+        hasBorders: true,
+        opacity: perspOriginalOpacity,
+      });
+
+      newImg._curtainOriginal = newImg.getElement().cloneNode();
+      newImg._curtainColor = perspOriginalColor;
+      if (perspOriginalColor && perspOriginalColor !== '#ffffff') {
+        applyTintToImage(newImg, perspOriginalColor);
+      }
+
+      historyPaused = true;
+      canvas.remove(perspTarget);
+      canvas.add(newImg);
+      if (zIndex >= 0) canvas.moveTo(newImg, zIndex);
+      canvas.setActiveObject(newImg);
+      historyPaused = false;
+
+      disablePerspective();
+      setTool('select');
+      canvas.renderAll();
+      showToast('Искажение применено');
+    });
+  };
+  img.src = perspOriginalSrc;
+}
+
+// =========================================
+// OBJECT ACTIONS
+// =========================================
+function clearAll() {
+  if (canvas.getObjects().length === 0) return;
+  if (!confirm('Удалить все шторы с холста?')) return;
+  saveHistory();
+  canvas.getObjects().slice().forEach(obj => canvas.remove(obj));
+  canvas.renderAll();
+  showToast('Холст очищен');
+}
+
+function deleteSelected() {
+  const obj = canvas.getActiveObject();
+  if (obj) { canvas.remove(obj); canvas.renderAll(); showToast('Штора удалена'); }
+  else showToast('Сначала выберите штору');
+}
+
+function flipCurtain() {
+  const obj = canvas.getActiveObject();
+  if (!obj) { showToast('Сначала выберите штору'); return; }
+  obj.set('flipX', !obj.flipX);
+  canvas.renderAll();
+  saveHistory();
+}
+
+function duplicateSelected() {
+  const obj = canvas.getActiveObject();
+  if (!obj) { showToast('Сначала выберите штору'); return; }
+  obj.clone((cloned) => {
+    cloned.set({ left: obj.left + 20, top: obj.top + 20 });
+    canvas.add(cloned);
+    canvas.setActiveObject(cloned);
+    canvas.renderAll();
+  });
+}
+
+function bringForward() {
+  const obj = canvas.getActiveObject();
+  if (obj) { canvas.bringForward(obj); canvas.renderAll(); }
+  else showToast('Сначала выберите штору');
+}
+
+function sendBackward() {
+  const obj = canvas.getActiveObject();
+  if (obj) { canvas.sendBackwards(obj); canvas.renderAll(); }
+  else showToast('Сначала выберите штору');
+}
+
+// =========================================
+// SAVE
+// =========================================
+function saveImage() {
+  if (!roomLoaded) { showToast('Сначала загрузите фото комнаты'); return; }
+  const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.92, multiplier: 2 });
+  const a = document.createElement('a');
+  a.href = dataURL;
+  a.download = 'belaya-reka-vizualizatsiya.jpg';
+  a.click();
+  showToast('Изображение сохранено');
+}
+
+// =========================================
+// STATUS + TOAST
+// =========================================
+function setStatus(msg) {
+  document.getElementById('statusBar').textContent = msg;
+}
+
+let toastTimeout = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// Prevent browser pinch-zoom on the whole page (mobile Safari)
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+document.addEventListener('touchmove', (e) => {
+  if (e.scale && e.scale !== 1) e.preventDefault();
+}, { passive: false });
+</script>
+</body>
+</html>
