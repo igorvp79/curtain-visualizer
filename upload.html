@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Белая Река · Загрузка фото</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: #f5f2ee;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px 24px;
+    max-width: 420px;
+    width: 100%;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    text-align: center;
+  }
+  .logo { font-size: 22px; color: #8b6f5e; margin-bottom: 8px; font-weight: 300; letter-spacing: 0.04em; }
+  .subtitle { font-size: 14px; color: #9e8e7e; margin-bottom: 28px; }
+  .upload-area {
+    border: 2px dashed #d4c4b0;
+    border-radius: 12px;
+    padding: 40px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 20px;
+    background: #faf8f5;
+  }
+  .upload-area:hover { border-color: #8b6f5e; background: #f5f0eb; }
+  .upload-icon { font-size: 56px; margin-bottom: 12px; }
+  .upload-text { font-size: 17px; color: #4a3020; margin-bottom: 6px; font-weight: 500; }
+  .upload-hint { font-size: 13px; color: #9e8e7e; }
+  input[type="file"] { display: none; }
+  .preview { display: none; margin-bottom: 20px; }
+  .preview img { width: 100%; max-height: 260px; object-fit: cover; border-radius: 10px; }
+  .btn {
+    width: 100%; padding: 15px; border: none; border-radius: 10px;
+    font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-primary { background: #8b6f5e; color: #fff; }
+  .btn-primary:hover { background: #7a5f4f; }
+  .btn-primary:disabled { background: #c4a882; cursor: not-allowed; }
+  .status { margin-top: 16px; font-size: 14px; color: #9e8e7e; min-height: 20px; }
+  .status.error { color: #b85c5c; }
+  .progress { display: none; margin-top: 14px; height: 5px; background: #e0d8cf; border-radius: 3px; overflow: hidden; }
+  .progress-bar { height: 100%; background: #8b6f5e; width: 0%; transition: width 0.4s; border-radius: 3px; }
+  .success-block { display: none; margin-top: 20px; }
+  .success-block .icon { font-size: 64px; }
+  .success-block .text { font-size: 18px; color: #5a8a5a; font-weight: 600; margin-top: 8px; }
+  .success-block .hint { font-size: 13px; color: #9e8e7e; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Белая Река</div>
+  <div class="subtitle">Загрузите фото вашей комнаты для дизайнера</div>
+
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <div class="upload-icon">📷</div>
+    <div class="upload-text">Нажмите чтобы выбрать фото</div>
+    <div class="upload-hint">Из галереи или сфотографируйте прямо сейчас</div>
+  </div>
+
+  <div class="preview" id="preview">
+    <img id="previewImg" src="" alt="">
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*" onchange="handleFile(event)">
+
+  <button class="btn btn-primary" id="uploadBtn" onclick="uploadPhoto()" disabled>
+    Отправить дизайнеру
+  </button>
+
+  <div class="progress" id="progressBar">
+    <div class="progress-bar" id="progressFill"></div>
+  </div>
+
+  <div class="status" id="status">Выберите фото комнаты</div>
+
+  <div class="success-block" id="successBlock">
+    <div class="icon">✅</div>
+    <div class="text">Фото отправлено!</div>
+    <div class="hint">Дизайнер уже видит ваше фото на экране</div>
+  </div>
+</div>
+
+<script>
+// ВАЖНО: после деплоя на Render замени URL ниже на свой адрес.
+// Пример: 'https://belreka-photo.onrender.com'
+const API_BASE = 'https://CHANGE-ME.onrender.com';
+
+let selectedFile = null;
+const params = new URLSearchParams(window.location.search);
+const sessionId = params.get('s');
+
+if (!sessionId) {
+  document.getElementById('status').textContent = 'Ошибка: отсканируйте QR код заново';
+  document.getElementById('status').className = 'status error';
+  document.getElementById('uploadBtn').disabled = true;
+}
+
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('previewImg').src = e.target.result;
+    document.getElementById('preview').style.display = 'block';
+    document.getElementById('uploadArea').style.display = 'none';
+    document.getElementById('uploadBtn').disabled = false;
+    document.getElementById('status').textContent = 'Фото выбрано — нажмите «Отправить дизайнеру»';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function uploadPhoto() {
+  if (!selectedFile || !sessionId) return;
+
+  const btn = document.getElementById('uploadBtn');
+  btn.disabled = true;
+  btn.textContent = 'Отправляю...';
+  document.getElementById('progressBar').style.display = 'block';
+  document.getElementById('progressFill').style.width = '20%';
+  document.getElementById('status').textContent = 'Отправляю фото дизайнеру...';
+  document.getElementById('status').className = 'status';
+
+  try {
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    document.getElementById('progressFill').style.width = '50%';
+
+    const resp = await fetch(`${API_BASE}/upload/${sessionId}`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!resp.ok) {
+      let errText = 'HTTP ' + resp.status;
+      try { const j = await resp.json(); if (j.error) errText = j.error; } catch(_) {}
+      throw new Error(errText);
+    }
+
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('status').textContent = '';
+    document.getElementById('successBlock').style.display = 'block';
+    document.getElementById('preview').style.display = 'none';
+    btn.style.display = 'none';
+    document.getElementById('progressBar').style.display = 'none';
+
+  } catch(err) {
+    document.getElementById('status').textContent = 'Ошибка: ' + err.message;
+    document.getElementById('status').className = 'status error';
+    btn.disabled = false;
+    btn.textContent = 'Попробовать снова';
+    document.getElementById('progressFill').style.width = '0%';
+  }
+}
+</script>
+</body>
+</html>
