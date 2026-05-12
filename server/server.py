@@ -162,6 +162,63 @@ def get_photo(session_id):
         return jsonify({"status": "ready", "photo_url": photo_url})
 
 
+# =========================================
+# ОБРАТНАЯ ПЕРЕДАЧА: дизайнер → клиент
+# =========================================
+# Дизайнер шлёт готовое фото на /share → получает share_id
+# Клиент по QR открывает /view/<share_id> на view.html → видит фото
+
+# Хранилище: share_id -> {"created": ts, "data_url": "..."}
+shares = {}
+shares_lock = threading.Lock()
+SHARE_TTL_SECONDS = 60 * 60  # 1 час
+
+
+def cleanup_old_shares():
+    now = time.time()
+    with shares_lock:
+        expired = [sid for sid, s in shares.items() if now - s["created"] > SHARE_TTL_SECONDS]
+        for sid in expired:
+            del shares[sid]
+
+
+@app.route('/share', methods=['POST', 'OPTIONS'])
+def create_share():
+    """Дизайнер шлёт готовое изображение, получает share_id для QR."""
+    if request.method == 'OPTIONS':
+        return '', 204
+
+    cleanup_old_shares()
+
+    data = request.get_json(silent=True) or {}
+    data_url = data.get('image')
+    if not data_url or not data_url.startswith('data:image/'):
+        return jsonify({"error": "no valid 'image' (data URL) in JSON body"}), 400
+
+    # Защита от слишком больших файлов — лимит 10 МБ в base64 (~7.5 МБ бинарных данных)
+    if len(data_url) > 10 * 1024 * 1024:
+        return jsonify({"error": "image too large"}), 413
+
+    share_id = uuid.uuid4().hex[:12]
+    with shares_lock:
+        shares[share_id] = {
+            "created": time.time(),
+            "data_url": data_url,
+        }
+
+    return jsonify({"share_id": share_id})
+
+
+@app.route('/view/<share_id>', methods=['GET'])
+def get_share(share_id):
+    """Клиент (страница view.html) получает картинку по share_id."""
+    cleanup_old_shares()
+    with shares_lock:
+        if share_id not in shares:
+            return jsonify({"status": "not_found"}), 404
+        return jsonify({"status": "ok", "data_url": shares[share_id]["data_url"]})
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
