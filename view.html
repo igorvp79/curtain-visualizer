@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes">
+<title>Белая Река · Ваш проект</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    background: #f5f2ee;
+    min-height: 100vh;
+    padding: 16px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .logo {
+    font-size: 22px;
+    color: #8b6f5e;
+    margin-bottom: 4px;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #9e8e7e;
+  }
+  .img-wrap {
+    background: #fff;
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    text-align: center;
+  }
+  .img-wrap img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto;
+  }
+  .hint {
+    font-size: 13px;
+    color: #9e8e7e;
+    text-align: center;
+    margin-top: 14px;
+    line-height: 1.5;
+    padding: 0 8px;
+  }
+  .loading,
+  .error {
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px 24px;
+    text-align: center;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    max-width: 420px;
+    margin: 60px auto 0;
+  }
+  .loading .icon,
+  .error .icon { font-size: 56px; margin-bottom: 12px; }
+  .loading .text,
+  .error .text {
+    font-size: 16px;
+    color: #4a3020;
+    margin-bottom: 6px;
+  }
+  .error .text { color: #b85c5c; }
+  .spinner {
+    display: inline-block;
+    width: 32px; height: 32px;
+    border: 3px solid #e0d8cf;
+    border-top-color: #8b6f5e;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-bottom: 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">Белая Река</div>
+  <div class="subtitle">Ваш проект штор</div>
+</div>
+
+<div class="loading" id="loadingBlock">
+  <div class="spinner"></div>
+  <div class="text">Загружаем ваше изображение…</div>
+</div>
+
+<div class="error" id="errorBlock" style="display:none">
+  <div class="icon">😕</div>
+  <div class="text" id="errorText">Изображение не найдено или срок хранения истёк</div>
+  <div class="hint">Попросите дизайнера повторно отсканировать QR-код</div>
+</div>
+
+<div class="img-wrap" id="imgBlock" style="display:none">
+  <img id="resultImg" src="" alt="Проект штор">
+</div>
+
+<div class="hint" id="hintBlock" style="display:none">
+  💡 Чтобы сохранить — задержите палец на изображении и выберите «Сохранить в Фото»
+</div>
+
+<script>
+// !!! ПОДСТАВЬ СВОЙ URL RENDER:
+const API_BASE = 'https://br-photo.onrender.com';
+
+const params = new URLSearchParams(window.location.search);
+const shareId = params.get('s');
+
+async function loadImage() {
+  if (!shareId) {
+    showError('Неправильная ссылка');
+    return;
+  }
+
+  try {
+    const resp = await fetch(`${API_BASE}/view/${shareId}`);
+    if (resp.status === 404) {
+      showError('Изображение не найдено или срок хранения истёк');
+      return;
+    }
+    if (!resp.ok) {
+      showError('Ошибка загрузки (HTTP ' + resp.status + ')');
+      return;
+    }
+    const data = await resp.json();
+    if (data.status === 'ok' && data.data_url) {
+      showImage(data.data_url);
+    } else {
+      showError('Изображение не найдено');
+    }
+  } catch (err) {
+    showError('Не удалось связаться с сервером');
+  }
+}
+
+function showImage(dataUrl) {
+  document.getElementById('resultImg').src = dataUrl;
+  document.getElementById('loadingBlock').style.display = 'none';
+  document.getElementById('errorBlock').style.display = 'none';
+  document.getElementById('imgBlock').style.display = 'block';
+  document.getElementById('hintBlock').style.display = 'block';
+}
+
+function showError(msg) {
+  document.getElementById('errorText').textContent = msg;
+  document.getElementById('loadingBlock').style.display = 'none';
+  document.getElementById('errorBlock').style.display = 'block';
+}
+
+loadImage();
+</script>
+</body>
+</html>
