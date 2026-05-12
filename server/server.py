@@ -24,8 +24,23 @@ from flask_cors import CORS
 from PIL import Image
 
 app = Flask(__name__)
-# CORS открыт всем — у нас публичный API без секретных данных
-CORS(app, resources={r"/*": {"origins": "*"}})
+# CORS открыт всем — у нас публичный API без секретных данных.
+# Явно разрешаем все методы и заголовки, чтобы preflight OPTIONS-запросы получали правильный ответ.
+CORS(app,
+     resources={r"/*": {"origins": "*"}},
+     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+     supports_credentials=False)
+
+
+# Дополнительный страховочный обработчик OPTIONS для любого маршрута.
+# Это гарантирует, что preflight-запрос с любым Content-Type получит 204 No Content + CORS-заголовки.
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+    return response
 
 # Хранилище сессий: session_id -> {"created": ts, "photo_url": None | "data:image/jpeg;base64,..."}
 sessions = {}
