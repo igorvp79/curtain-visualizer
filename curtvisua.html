@@ -386,7 +386,8 @@
   #curtainInput { display: none; }
 
   /* ============ QR MODAL ============ */
-  #qrModal {
+  #qrModal,
+  #shareModal {
     display: none;
     position: fixed;
     inset: 0;
@@ -396,7 +397,8 @@
     align-items: center;
     justify-content: center;
   }
-  #qrModal.active { display: flex; }
+  #qrModal.active,
+  #shareModal.active { display: flex; }
   .qr-modal-card {
     background: #fff;
     border-radius: 14px;
@@ -2101,7 +2103,7 @@ function setStatus(msg) {
 // QR — ЗАГРУЗКА ФОТО С ТЕЛЕФОНА
 // =========================================
 // !!! После деплоя на Render замени API_BASE и UPLOAD_PAGE на свои URL !!!
-const QR_API_BASE = 'https://br-photo.onrender.com';
+const QR_API_BASE = 'https://CHANGE-ME.onrender.com';
 const QR_UPLOAD_URL = 'https://igorvp79.github.io/curtain-visualizer/upload.html';
 const QR_VIEW_URL = 'https://igorvp79.github.io/curtain-visualizer/view.html';
 
