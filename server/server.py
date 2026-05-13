@@ -19,24 +19,31 @@ import time
 import uuid
 import base64
 import threading
-from flask import Flask, request, jsonify, abort
-from flask_cors import CORS
+from flask import Flask, request, jsonify, abort, make_response
 from PIL import Image
 
 app = Flask(__name__)
-# CORS открыт всем — у нас публичный API без секретных данных.
-# Явно разрешаем все методы и заголовки, чтобы preflight OPTIONS-запросы получали правильный ответ.
-CORS(app,
-     resources={r"/*": {"origins": "*"}},
-     methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
-     supports_credentials=False)
 
 
-# Дополнительный страховочный обработчик OPTIONS для любого маршрута.
-# Это гарантирует, что preflight-запрос с любым Content-Type получит 204 No Content + CORS-заголовки.
+# =========================================
+# CORS — чистая ручная реализация без flask-cors
+# (с flask-cors были проблемы на preflight для /share)
+# =========================================
+@app.before_request
+def handle_preflight():
+    """Любой OPTIONS-запрос отвечаем сразу 204 с CORS-заголовками."""
+    if request.method == 'OPTIONS':
+        resp = make_response('', 204)
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
+        resp.headers['Access-Control-Max-Age'] = '3600'
+        return resp
+
+
 @app.after_request
 def add_cors_headers(response):
+    """На все ответы добавляем CORS-заголовки."""
     response.headers['Access-Control-Allow-Origin'] = '*'
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
@@ -88,12 +95,9 @@ def create_session():
     return jsonify({"session_id": session_id})
 
 
-@app.route('/upload/<session_id>', methods=['POST', 'OPTIONS'])
+@app.route('/upload/<session_id>', methods=['POST'])
 def upload_photo(session_id):
     """Телефон загружает фото в указанную сессию."""
-    if request.method == 'OPTIONS':
-        return '', 204
-
     with sessions_lock:
         if session_id not in sessions:
             return jsonify({"error": "session not found or expired"}), 404
@@ -182,12 +186,9 @@ def cleanup_old_shares():
             del shares[sid]
 
 
-@app.route('/share', methods=['POST', 'OPTIONS'])
+@app.route('/share', methods=['POST'])
 def create_share():
     """Дизайнер шлёт готовое изображение, получает share_id для QR."""
-    if request.method == 'OPTIONS':
-        return '', 204
-
     cleanup_old_shares()
 
     data = request.get_json(silent=True) or {}
