@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Белая Река — предварительный расчёт стоимости штор</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Manrope:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.11.0/dist/tabler-icons.min.css">
+<style>
+:root {
+  --bg-page: #F6F3EE;
+  --bg-card: #FFFFFF;
+  --bg-subtle: #EFEBE3;
+  --text-primary: #1A1814;
+  --text-secondary: #6E665C;
+  --text-tertiary: #9A9286;
+  --border-light: #E8E1D4;
+  --border-medium: #C8BFB0;
+  --accent: #4A6B5C;
+  --accent-dark: #2F4A3D;
+  --accent-tint: #E8EFEA;
+  --amber-bg: #F5E9D0;
+  --amber-dark: #6E4D14;
+  --amber-text: #3A2A0A;
+  --green-bg: #DEEDE4;
+  --green-dark: #2F5B45;
+  --green-text: #1A3A28;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --serif: 'Cormorant Garamond', Georgia, serif;
+  --sans: 'Manrope', -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px 24px 48px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 36px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brand-mark {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.brand-name {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+}
+
+.brand-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.header-meta {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.progress-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+
+.progress-step {
+  flex: 1;
+  height: 3px;
+  background: var(--border-light);
+  border-radius: 2px;
+  transition: background 0.4s ease;
+}
+
+.progress-step.done { background: var(--accent); }
+
+.step-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.step-title {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin-bottom: 28px;
+  color: var(--text-primary);
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.opt {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+  font-family: inherit;
+}
+
+.opt:hover {
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
+}
+
+.opt.sel {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.opt-ic {
+  font-size: 24px;
+  color: var(--text-secondary);
+  display: block;
+  margin-bottom: 10px;
+  line-height: 1;
+}
+
+.opt.sel .opt-ic { color: var(--accent); }
+
+.opt-t {
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  color: var(--text-primary);
+}
+
+.opt-m {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.size-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.size-row label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.size-row input {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--text-primary);
+  transition: border-color 0.18s;
+}
+
+.size-row input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.size-hint {
+  font-size: 13px;
+  color: var(--text-tertiary);
+  margin-bottom: 28px;
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btn-next {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 13px 28px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.05s;
+  letter-spacing: 0.02em;
+}
+
+.btn-next:hover:not(:disabled) { background: var(--accent-dark); }
+.btn-next:active:not(:disabled) { transform: scale(0.98); }
+.btn-next:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.btn-back {
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  padding: 12px 22px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: border-color 0.18s;
+}
+
+.btn-back:hover { border-color: var(--text-secondary); }
+
+.section { display: none; animation: fadeIn 0.35s ease; }
+.section.on { display: block; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.result-price {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 28px 32px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.result-price .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.result-price .range {
+  font-family: var(--serif);
+  font-size: 38px;
+  font-weight: 500;
+  margin-bottom: 14px;
+  color: var(--accent-dark);
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.result-price .note {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.section-heading {
+  font-family: var(--serif);
+  font-size: 22px;
+  font-weight: 500;
+  margin: 32px 0 16px;
+  color: var(--text-primary);
+}
+
+.rec-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: 12px;
+}
+
+.rec-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.rec-head i {
+  font-size: 18px;
+  color: var(--accent);
+}
+
+.rec-head h3 {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.rec-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.rec-card li {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  padding: 8px 0 8px 22px;
+  position: relative;
+}
+
+.rec-card li:not(:last-child) { border-bottom: 1px solid var(--border-light); }
+
+.rec-card li::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  left: 4px;
+  top: 16px;
+}
+
+.lifehack {
+  background: var(--amber-bg);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin: 12px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.lifehack i {
+  font-size: 24px;
+  color: var(--amber-dark);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lifehack h3 {
+  font-size: 11px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: var(--amber-text);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.lifehack p {
+  font-size: 14.5px;
+  color: var(--amber-text);
+  line-height: 1.55;
+}
+
+.bonus {
+  background: var(--green-bg);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin: 24px 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bonus-ic {
+  font-size: 32px;
+  color: var(--green-dark);
+  flex-shrink: 0;
+}
+
+.bonus h3 {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  color: var(--green-text);
+}
+
+.bonus p {
+  font-size: 13px;
+  color: var(--green-dark);
+  line-height: 1.5;
+}
+
+.final-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.final-actions .btn-next {
+  flex: 1;
+  min-width: 220px;
+  padding: 16px 24px;
+  font-size: 15px;
+}
+
+.btn-secondary {
+  flex: 1;
+  min-width: 220px;
+  background: transparent;
+  border: 1px solid var(--border-medium);
+  padding: 15px 22px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: 500;
+  transition: border-color 0.18s;
+}
+
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+.reset-btn {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  cursor: pointer;
+  margin-top: 20px;
+  padding: 4px 0;
+  font-family: inherit;
+  text-decoration: underline;
+}
+
+.reset-btn:hover { color: var(--text-secondary); }
+
+.footer {
+  text-align: center;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-light);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.04em;
+}
+
+.demo-note {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 12px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 600px) {
+  .page { padding: 20px 16px 32px; }
+  .step-title { font-size: 26px; }
+  .result-price .range { font-size: 30px; }
+  .header { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .header-meta { text-align: left; }
+  .options-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header class="header">
+    <div class="brand">
+      <div class="brand-mark">БР</div>
+      <div>
+        <div class="brand-name">Белая Река</div>
+        <div class="brand-sub">Салон штор · Киров</div>
+      </div>
+    </div>
+    <div class="header-meta">Предварительный расчёт<br>стоимости штор</div>
+  </header>
+
+  <main class="quiz">
+    <div class="progress-bar" id="prog"></div>
+
+    <div class="section on" data-step="1">
+      <p class="step-label">Шаг 1 из 5</p>
+      <h2 class="step-title">Какой тип штор вас интересует?</h2>
+      <div class="options-grid">
+        <div class="opt" data-k="type" data-v="portyery" data-base="3500" data-mult="2"><i class="ti ti-layout-rows opt-ic"></i><p class="opt-t">Портьеры</p><p class="opt-m">Плотные, классические</p></div>
+        <div class="opt" data-k="type" data-v="tul" data-base="2500" data-mult="2.5"><i class="ti ti-wind opt-ic"></i><p class="opt-t">Тюль</p><p class="opt-m">Лёгкие, прозрачные</p></div>
+        <div class="opt" data-k="type" data-v="rimskie" data-base="5500" data-mult="1.2"><i class="ti ti-stack-2 opt-ic"></i><p class="opt-t">Римские</p><p class="opt-m">Складываются вверх</p></div>
+        <div class="opt" data-k="type" data-v="rulonnye" data-base="4500" data-mult="1.1"><i class="ti ti-arrow-bar-down opt-ic"></i><p class="opt-t">Рулонные</p><p class="opt-m">Сворачиваются в вал</p></div>
+        <div class="opt" data-k="type" data-v="plisse" data-base="5000" data-mult="1.2"><i class="ti ti-arrows-vertical opt-ic"></i><p class="opt-t">Плиссе</p><p class="opt-m">Складчатые «гармошкой»</p></div>
+        <div class="opt" data-k="type" data-v="zhalyuzi" data-base="4000" data-mult="1"><i class="ti ti-menu-2 opt-ic"></i><p class="opt-t">Жалюзи</p><p class="opt-m">Горизонтальные ламели</p></div>
+      </div>
+      <div class="nav"><div></div><button class="btn-next" data-go="2" disabled>Далее</button></div>
+    </div>
+
+    <div class="section" data-step="2">
+      <p class="step-label">Шаг 2 из 5</p>
+      <h2 class="step-title">Для какой комнаты?</h2>
+      <div class="options-grid">
+        <div class="opt" data-k="room" data-v="living"><i class="ti ti-sofa opt-ic"></i><p class="opt-t">Гостиная</p></div>
+        <div class="opt" data-k="room" data-v="bedroom"><i class="ti ti-bed opt-ic"></i><p class="opt-t">Спальня</p></div>
+        <div class="opt" data-k="room" data-v="kitchen"><i class="ti ti-tools-kitchen-2 opt-ic"></i><p class="opt-t">Кухня</p></div>
+        <div class="opt" data-k="room" data-v="kids"><i class="ti ti-mood-smile opt-ic"></i><p class="opt-t">Детская</p></div>
+        <div class="opt" data-k="room" data-v="office"><i class="ti ti-briefcase opt-ic"></i><p class="opt-t">Кабинет</p></div>
+      </div>
+      <div class="nav"><button class="btn-back" data-go="1">Назад</button><button class="btn-next" data-go="3" disabled>Далее</button></div>
+    </div>
+
+    <div class="section" data-step="3">
+      <p class="step-label">Шаг 3 из 5</p>
+      <h2 class="step-title">Размеры окна</h2>
+      <div class="size-row">
+        <div><label>Ширина окна, см</label><input type="number" id="w" placeholder="например, 180" min="40" max="600" /></div>
+        <div><label>Высота окна, см</label><input type="number" id="h" placeholder="например, 220" min="40" max="400" /></div>
+      </div>
+      <p class="size-hint">Не обязательно точно — на замере уточним. Достаточно ориентира.</p>
+      <div class="nav"><button class="btn-back" data-go="2">Назад</button><button class="btn-next" data-go="4">Далее</button></div>
+    </div>
+
+    <div class="section" data-step="4">
+      <p class="step-label">Шаг 4 из 5</p>
+      <h2 class="step-title">Что для вас важнее всего?</h2>
+      <div class="options-grid">
+        <div class="opt" data-k="goal" data-v="decor"><i class="ti ti-sparkles opt-ic"></i><p class="opt-t">Красота, декор</p><p class="opt-m">Дополнить интерьер</p></div>
+        <div class="opt" data-k="goal" data-v="blackout"><i class="ti ti-moon opt-ic"></i><p class="opt-t">Затемнение</p><p class="opt-m">Спать в темноте</p></div>
+        <div class="opt" data-k="goal" data-v="sun"><i class="ti ti-sun opt-ic"></i><p class="opt-t">Защита от солнца</p><p class="opt-m">Чтобы не выгорало</p></div>
+        <div class="opt" data-k="goal" data-v="zone"><i class="ti ti-layout opt-ic"></i><p class="opt-t">Зонирование</p><p class="opt-m">Разделить пространство</p></div>
+      </div>
+      <div class="nav"><button class="btn-back" data-go="3">Назад</button><button class="btn-next" data-go="5" disabled>Далее</button></div>
+    </div>
+
+    <div class="section" data-step="5">
+      <p class="step-label">Шаг 5 из 5</p>
+      <h2 class="step-title">Уровень ткани</h2>
+      <div class="options-grid">
+        <div class="opt" data-k="fabric" data-v="econom" data-flow="800" data-fhigh="1500"><i class="ti ti-coin opt-ic"></i><p class="opt-t">Эконом</p><p class="opt-m">800–1500 ₽/м²</p></div>
+        <div class="opt" data-k="fabric" data-v="standart" data-flow="1500" data-fhigh="3500"><i class="ti ti-coins opt-ic"></i><p class="opt-t">Стандарт</p><p class="opt-m">1500–3500 ₽/м²</p></div>
+        <div class="opt" data-k="fabric" data-v="premium" data-flow="3500" data-fhigh="8000"><i class="ti ti-diamond opt-ic"></i><p class="opt-t">Премиум</p><p class="opt-m">от 3500 ₽/м²</p></div>
+        <div class="opt" data-k="fabric" data-v="advise" data-flow="1500" data-fhigh="5000"><i class="ti ti-help opt-ic"></i><p class="opt-t">Не знаю</p><p class="opt-m">Посоветуйте</p></div>
+      </div>
+      <div class="nav"><button class="btn-back" data-go="4">Назад</button><button class="btn-next" data-go="6" disabled>Показать результат</button></div>
+    </div>
+
+    <div class="section" data-step="6">
+      <p class="step-label">Предварительный расчёт</p>
+      <h2 class="step-title">Ориентировочная стоимость</h2>
+
+      <div class="result-price">
+        <p class="label">Диапазон цены под ваш запрос</p>
+        <p class="range" id="price-range">— ₽</p>
+        <p class="note">Это честная вилка — финальная цена зависит от конкретной ткани, фурнитуры и точных замеров. Обычно укладывается в этот диапазон. Замер бесплатный, оплата только за результат.</p>
+      </div>
+
+      <h3 class="section-heading">Что мы рекомендуем под ваш запрос</h3>
+
+      <div class="rec-card">
+        <div class="rec-head"><i class="ti ti-target" aria-hidden="true"></i><h3>Под вашу задачу</h3></div>
+        <ul id="rec-task"></ul>
+      </div>
+
+      <div class="rec-card">
+        <div class="rec-head"><i class="ti ti-color-swatch" aria-hidden="true"></i><h3>На что обратить внимание при выборе ткани</h3></div>
+        <ul id="rec-fabric"></ul>
+      </div>
+
+      <div class="lifehack">
+        <i class="ti ti-bulb" aria-hidden="true"></i>
+        <div>
+          <h3>Совет дизайнера</h3>
+          <p id="lifehack-text"></p>
+        </div>
+      </div>
+
+      <div class="rec-card">
+        <div class="rec-head"><i class="ti ti-ruler-measure" aria-hidden="true"></i><h3>Что мы сделаем на замере</h3></div>
+        <ul id="rec-measure"></ul>
+      </div>
+
+      <div class="bonus">
+        <i class="ti ti-gift bonus-ic" aria-hidden="true"></i>
+        <div>
+          <h3>Бонус за прохождение квиза</h3>
+          <p>Бесплатный замер с выездом по Кирову и скидка 5% при заказе в течение 7 дней.</p>
+        </div>
+      </div>
+
+      <div class="final-actions">
+        <button class="btn-next" onclick="alert('Откроется форма записи на бесплатный замер')"><i class="ti ti-calendar-event" style="vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Записаться на бесплатный замер</button>
+        <button class="btn-secondary" onclick="alert('Отправим на email PDF с подборкой тканей')"><i class="ti ti-download" style="vertical-align:-2px;margin-right:6px" aria-hidden="true"></i>Получить PDF-подборку тканей</button>
+      </div>
+      <button class="reset-btn" onclick="resetQuiz()">Пройти квиз заново</button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    belaya-reka43.ru
+    <div class="demo-note">Демонстрация концепции — цифры в расчётах примерные</div>
+  </footer>
+</div>
+
+<script>
+(function(){
+  const state = { step: 1, type: null, room: null, goal: null, fabric: null, base: 0, mult: 1, flow: 0, fhigh: 0 };
+  const TOTAL = 5;
+  const sections = document.querySelectorAll('.section');
+  const prog = document.getElementById('prog');
+
+  for (let i = 0; i < TOTAL; i++) {
+    const d = document.createElement('div');
+    d.className = 'progress-step' + (i === 0 ? ' done' : '');
+    prog.appendChild(d);
+  }
+
+  function show(n) {
+    state.step = n;
+    sections.forEach(s => s.classList.toggle('on', +s.dataset.step === n));
+    prog.querySelectorAll('.progress-step').forEach((d, i) => d.classList.toggle('done', i < n));
+    if (n === 6) renderResult();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  document.querySelectorAll('.opt').forEach(o => {
+    o.addEventListener('click', () => {
+      const k = o.dataset.k;
+      document.querySelectorAll(`.opt[data-k="${k}"]`).forEach(x => x.classList.remove('sel'));
+      o.classList.add('sel');
+      state[k] = o.dataset.v;
+      if (k === 'type') { state.base = +o.dataset.base; state.mult = +o.dataset.mult; }
+      if (k === 'fabric') { state.flow = +o.dataset.flow; state.fhigh = +o.dataset.fhigh; }
+      const sec = o.closest('.section');
+      const btn = sec.querySelector('.btn-next');
+      if (btn) btn.disabled = false;
+    });
+  });
+
+  document.querySelectorAll('[data-go]').forEach(b => {
+    b.addEventListener('click', () => show(+b.dataset.go));
+  });
+
+  const RECS = {
+    type: {
+      portyery: ['Карниз вешайте под самый потолок, шторы — до пола. Окно зрительно станет выше, комната — больше', 'Если шторы кажутся «жидкими» — почти всегда не хватает ткани по ширине. Запас должен быть минимум в два раза'],
+      tul: ['Белый тюль через год сереет от пыли. Берите слегка кремовый или айвори — глаз разницы не видит, а пыль не выдаёт', 'Не вешайте тюль так, чтобы он лежал на батарее — в местах контакта он желтеет, и эти пятна не отстирываются'],
+      rimskie: ['Можно крепить прямо на створку окна — окно открывается вместе со шторой, ничего не свисает и не мешает', 'На широкое окно лучше две узких римских вместо одной — поднимать в разы удобнее'],
+      rulonnye: ['Можно установить без сверления — на двусторонний скотч. Держится годами, удобно для съёмной квартиры', 'Возьмите с тёмной подложкой — вечером с улицы не будут видны силуэты в окне'],
+      plisse: ['Устанавливаются прямо на створку пластикового окна без сверления — окно открывается вместе со шторой, ничего не свисает и не мешает', 'Тип «день-ночь» — это две ткани в одной шторе: полупрозрачная и плотная. Двигаете планку и переключаете режим, не нужно отдельных тюлей и портьер'],
+      zhalyuzi: ['Поверните ламели «открытием вверх» — свет идёт в потолок и рассеивается мягко. Большинство ставит наоборот и потом жалуется на блики', 'Не нужно открывать жалюзи полностью — достаточно повернуть ламели и регулировать свет одним движением']
+    },
+    goal: {
+      decor: ['Цвет штор не обязан совпадать со стенами. Шторы в цвет дивана, ковра или подушек смотрятся намного интереснее', 'Если интерьер уже насыщенный — наоборот, выбирайте шторы тон в тон со стенами. Они «исчезнут» и не будут спорить с акцентами'],
+      blackout: ['Главный путь света утром — не через ткань, а по бокам штор. Поэтому карниз нужен на 25 см шире окна с каждой стороны, иначе никакой блэкаут не спасёт', 'Полное затемнение реально работает: исследования показывают +30 минут глубокого сна за ночь'],
+      sun: ['Парадокс: летом светлые шторы спасают от жары лучше тёмных. Тёмные сами нагреваются и отдают тепло в комнату', 'Подкладка серебристой стороной к окну работает как отражатель — снижает температуру в комнате на 3–5°C'],
+      zone: ['Шторами можно мягко разделить, например, кровать и рабочий стол в одной комнате — дешевле и теплее любой перегородки', 'Потолочный карниз во всю стену создаёт эффект сплошной мягкой стены — особенно красиво в студиях']
+    },
+    fabric: {
+      living: ['Обязательно возьмите образец домой — посмотрите при своём освещении и рядом со своим диваном. В магазине ткань выглядит совсем иначе', 'Чем тяжелее ткань, тем тяжелее должен быть карниз. Многие про это забывают и потом карниз провисает'],
+      bedroom: ['Главное — потрогать ткань живьём. Если в магазине она ощущается «пластиковой», дома будет такой же', 'Смотрите маркировку на стирку. Если только химчистка — будьте готовы возить шторы 2 раза в год'],
+      kitchen: ['Берите то, что не жалко часто стирать. Лён, полиэстер, смесовые ткани спокойно переносят машинку', 'Бархат, велюр и шерсть — мимо. Впитывают запахи готовки и плохо отстирываются'],
+      kids: ['Спросите про сертификат OEKO-TEX. Есть — значит ткань прошла проверку на безопасность для детей', 'Простота стирки важнее красоты. Дети есть дети — пятна точно будут'],
+      office: ['Антистатическая пропитка — меньше пыли на ткани. Особенно полезно у компьютера', 'Плотные ткани заодно гасят звук — пригодится для созвонов и сосредоточенной работы']
+    },
+    lifehack: {
+      portyery: 'Вешайте карниз почти под потолок и пускайте шторы до самого пола, даже если окно небольшое. Один этот приём «вытягивает» комнату на 30–40 см вверх — главный трюк из премиум-салонов.',
+      tul: 'Берите тюль на 10–15 см длиннее окна, даже если планируете «в подоконник». Подвернуть и укоротить можно всегда, а нарастить уже нельзя.',
+      rimskie: 'Крепите штору не над окном, а прямо на створку. Тогда окно открывается вместе со шторой — не свисает, не путается, не мешает мыть стекло.',
+      rulonnye: 'На пластиковые окна можно поставить рулонную систему без сверления — на двусторонний скотч. Держится годами и не оставляет следов, если решите снять.',
+      plisse: 'Плиссе умеет открываться не только сверху вниз, но и снизу вверх — поднимаете нижнюю часть, а верх окна остаётся открытым. Снизу с улицы никто не видит, что у вас в комнате, а свет сверху идёт свободно. Для первых этажей и окон во двор это настоящее спасение.',
+      zhalyuzi: 'Угол ламелей «открытием вверх» направляет свет в потолок — он рассеивается мягко по всей комнате. «Открытием вниз» — слепит в пол и в глаза. Большинство ставит неправильно.'
+    },
+    measure: ['Точно замерим окно и подскажем, как лучше повесить карниз — иногда сдвиг на 5–10 см кардинально меняет вид комнаты', 'Привезём 5–7 образцов ткани прямо к вам — выбираете при своём освещении, рядом со своими стенами и мебелью', 'Подскажем механизм управления, который удобен именно вам — кому-то важно одной рукой, кому-то нужна тишина', 'Расскажем, что входит в стоимость, а что нет — без сюрпризов потом']
+  };
+
+  function renderResult() {
+    const w = (+document.getElementById('w').value || 180) / 100;
+    const h = (+document.getElementById('h').value || 220) / 100;
+    const area = w * h * state.mult;
+    const low = Math.round((state.base + area * state.flow) / 100) * 100;
+    const high = Math.round((state.base + area * state.fhigh) / 100) * 100;
+    document.getElementById('price-range').textContent = `от ${low.toLocaleString('ru-RU')} до ${high.toLocaleString('ru-RU')} ₽`;
+
+    const ul = (id, items) => { document.getElementById(id).innerHTML = items.map(t => `<li>${t}</li>`).join(''); };
+
+    const taskItems = [...(RECS.type[state.type] || []), ...(RECS.goal[state.goal] || [])];
+    ul('rec-task', taskItems);
+    ul('rec-fabric', RECS.fabric[state.room] || []);
+    ul('rec-measure', RECS.measure);
+
+    document.getElementById('lifehack-text').textContent = RECS.lifehack[state.type] || '';
+  }
+
+  window.resetQuiz = function() {
+    Object.assign(state, { step: 1, type: null, room: null, goal: null, fabric: null, base: 0, mult: 1, flow: 0, fhigh: 0 });
+    document.querySelectorAll('.opt').forEach(o => o.classList.remove('sel'));
+    document.getElementById('w').value = '';
+    document.getElementById('h').value = '';
+    document.querySelectorAll('.btn-next[data-go]').forEach(b => {
+      const target = +b.dataset.go;
+      if (target === 4) return;
+      b.disabled = true;
+    });
+    show(1);
+  };
+
+  show(1);
+})();
+</script>
+</body>
+</html>
