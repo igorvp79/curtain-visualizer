@@ -924,6 +924,10 @@ function renderGrid() {
 function addCurtainToCanvas(template, catIdx, itemIdx) {
   if (!template.src) return;
 
+  // Перед добавлением гарантированно выходим из ластика/искажения,
+  // иначе новый объект будет неуправляемым
+  if (currentTool !== 'select') setTool('select');
+
   // Снимаем активный класс со всех карточек
   document.querySelectorAll('.curtain-card').forEach(c => c.classList.remove('active'));
   const card = document.getElementById(`card_${catIdx}_${itemIdx}`);
@@ -1409,55 +1413,66 @@ canvas.remove = function(...args) {
 };
 
 // =========================================
-// ERASER — работает через pixel manipulation на offscreen canvas
+// ЛАСТИК — стирание «на месте», без подмены объекта и без асинхронных гонок
 // =========================================
 let eraserActive = false;
-let eraserTarget = null;
-let eraserLockedTarget = null;
-let offscreenCanvas = null;
-let offscreenCtx = null;
+let eraserTarget = null;        // объект, который сейчас стираем
+let eraserLockedTarget = null;  // зафиксированный объект (если был выбран до ластика)
+let eraseCanvas = null;         // рабочий холст = текущий элемент объекта
+let eraseCtx = null;
 let isErasing = false;
+let lastErasePt = null;
 
 function enableEraser() {
   eraserActive = true;
 
-  // Если был выбран объект — фиксируем его для ластика
+  // если объект был выбран до ластика — стираем только его
   const selected = canvas.getActiveObject();
   eraserLockedTarget = (selected && selected.type === 'image') ? selected : null;
 
-  canvas.selection = false;
   canvas.discardActiveObject();
-  // Отключаем Fabric drag — делаем все объекты невзаимодействующими
-  canvas.forEachObject(o => { o._eraserSelectable = o.selectable; o.selectable = false; o.evented = false; });
+  canvas.selection = false;
+  // запоминаем интерактивность и временно выключаем выделение мышью
+  canvas.forEachObject(o => {
+    o._eraserSelectable = o.selectable;
+    o._eraserEvented = o.evented;
+    o.selectable = false;
+    o.evented = false;
+  });
   canvas.renderAll();
 
   const upper = canvas.upperCanvasEl;
   upper.style.cursor = 'crosshair';
-
-  upper.addEventListener('mousedown', onEraserStart);
-  upper.addEventListener('mousemove', onEraserMove);
-  upper.addEventListener('mouseup', onEraserEnd);
-  upper.addEventListener('mouseleave', onEraserEnd);
+  // capture-фаза + stopImmediatePropagation — полностью забираем мышь у Fabric
+  upper.addEventListener('mousedown', onEraserStart, true);
+  upper.addEventListener('mousemove', onEraserMove, true);
+  window.addEventListener('mouseup', onEraserEnd, true);
 }
 
 function disableEraser() {
+  if (isErasing) finalizeErase();   // если стирание не завершено — корректно закрываем
+
   eraserActive = false;
   eraserLockedTarget = null;
+  eraserTarget = null;
+  eraseCanvas = null;
+  eraseCtx = null;
+  lastErasePt = null;
+
   canvas.selection = true;
-  // Возвращаем взаимодействие объектам
-  canvas.forEachObject(o => { o.selectable = o._eraserSelectable !== undefined ? o._eraserSelectable : true; o.evented = true; });
+  // ВОЗВРАЩАЕМ интерактивность всем объектам
+  canvas.forEachObject(o => {
+    o.selectable = (o._eraserSelectable !== undefined) ? o._eraserSelectable : true;
+    o.evented    = (o._eraserEvented    !== undefined) ? o._eraserEvented    : true;
+  });
 
   const upper = canvas.upperCanvasEl;
   upper.style.cursor = 'default';
+  upper.removeEventListener('mousedown', onEraserStart, true);
+  upper.removeEventListener('mousemove', onEraserMove, true);
+  window.removeEventListener('mouseup', onEraserEnd, true);
 
-  upper.removeEventListener('mousedown', onEraserStart);
-  upper.removeEventListener('mousemove', onEraserMove);
-  upper.removeEventListener('mouseup', onEraserEnd);
-  upper.removeEventListener('mouseleave', onEraserEnd);
-
-  offscreenCanvas = null;
-  offscreenCtx = null;
-  eraserTarget = null;
+  canvas.renderAll();
 }
 
 function getCanvasPoint(e) {
@@ -1471,127 +1486,96 @@ function getCanvasPoint(e) {
 function findTopmostImageAt(x, y) {
   const objs = canvas.getObjects().filter(o => o.type === 'image');
   for (let i = objs.length - 1; i >= 0; i--) {
-    const o = objs[i];
-    if (o.containsPoint(new fabric.Point(x, y))) return o;
+    if (objs[i].containsPoint(new fabric.Point(x, y))) return objs[i];
   }
   return null;
 }
 
 function onEraserStart(e) {
-  e.stopPropagation();
+  e.stopImmediatePropagation();
   e.preventDefault();
-  const pt = getCanvasPoint(e);
 
-  // Если объект уже был выбран до включения ластика — работаем только с ним
-  // Иначе берём верхний объект под курсором
+  const pt = getCanvasPoint(e);
   eraserTarget = eraserLockedTarget || findTopmostImageAt(pt.x, pt.y);
   if (!eraserTarget) return;
 
   isErasing = true;
+  lastErasePt = null;
 
-  // Берём ОРИГИНАЛЬНЫЙ элемент ДО применения фильтров
-  const el = eraserTarget._originalElement || eraserTarget._element || eraserTarget.getElement();
+  // рабочий холст = текущий вид объекта (с цветом и прошлыми стираниями)
+  const el = eraserTarget.getElement();
   const w = el.naturalWidth || el.width;
   const h = el.naturalHeight || el.height;
+  eraseCanvas = document.createElement('canvas');
+  eraseCanvas.width = w;
+  eraseCanvas.height = h;
+  eraseCtx = eraseCanvas.getContext('2d');
+  eraseCtx.drawImage(el, 0, 0, w, h);
 
-  offscreenCanvas = document.createElement('canvas');
-  offscreenCanvas.width = w;
-  offscreenCanvas.height = h;
-  offscreenCtx = offscreenCanvas.getContext('2d');
-  offscreenCtx.drawImage(el, 0, 0, w, h);
+  // подменяем элемент объекта на наш холст и рисуем прямо в него — синхронно
+  eraserTarget.setElement(eraseCanvas);
+  eraserTarget.dirty = true;
 
   eraseAt(pt.x, pt.y);
 }
 
 function onEraserMove(e) {
-  e.stopPropagation();
   if (!isErasing || !eraserTarget) return;
+  e.stopImmediatePropagation();
   const pt = getCanvasPoint(e);
   eraseAt(pt.x, pt.y);
 }
 
 function onEraserEnd(e) {
-  if (e) e.stopPropagation();
-  if (!isErasing || !eraserTarget) return;
-  isErasing = false;
-
-  const savedFilters = eraserTarget.filters ? [...eraserTarget.filters] : [];
-  const savedProps = {
-    left: eraserTarget.left,
-    top: eraserTarget.top,
-    scaleX: eraserTarget.scaleX,
-    scaleY: eraserTarget.scaleY,
-    angle: eraserTarget.angle,
-    opacity: eraserTarget.opacity,
-  };
-
-  const dataUrl = offscreenCanvas.toDataURL('image/png');
-  fabric.Image.fromURL(dataUrl, (newImg) => {
-    newImg.set({
-      ...savedProps,
-      selectable: true,
-      evented: true,
-      cornerColor: '#000000',
-      cornerStrokeColor: '#000000',
-      cornerSize: 10,
-      transparentCorners: false,
-    });
-    newImg.filters = savedFilters;
-    newImg.applyFilters();
-
-    historyPaused = true;
-    // Запоминаем позицию в стеке перед удалением
-    const objects = canvas.getObjects();
-    const zIndex = objects.indexOf(eraserTarget);
-    canvas.remove(eraserTarget);
-    // Вставляем на ту же позицию в стеке
-    canvas.add(newImg);
-    if (zIndex >= 0) canvas.moveTo(newImg, zIndex);
-    canvas.renderAll();
-    historyPaused = false;
-    eraserTarget = newImg;
-    offscreenCanvas = null;
-    offscreenCtx = null;
-    saveHistory();
-  });
+  if (!isErasing) return;
+  if (e) e.stopImmediatePropagation();
+  finalizeErase();
 }
 
 function eraseAt(canvasX, canvasY) {
-  if (!eraserTarget || !offscreenCtx) return;
-
-  // Переводим координаты canvas → координаты изображения
+  if (!eraserTarget || !eraseCtx) return;
   const obj = eraserTarget;
-  const el = eraserTarget.getElement();
-  const w = el.naturalWidth || el.width;
-  const h = el.naturalHeight || el.height;
+  const w = eraseCanvas.width;
+  const h = eraseCanvas.height;
 
-  // Матрица трансформации объекта
-  const matrix = obj.calcTransformMatrix();
-  const invMatrix = fabric.util.invertTransform(matrix);
-  const localPt = fabric.util.transformPoint({ x: canvasX, y: canvasY }, invMatrix);
-
-  // localPt в координатах объекта (от -width/2 до width/2)
-  const imgX = (localPt.x + obj.width / 2) * (w / obj.width);
-  const imgY = (localPt.y + obj.height / 2) * (h / obj.height);
+  // canvas → локальные координаты объекта → пиксели элемента
+  const inv = fabric.util.invertTransform(obj.calcTransformMatrix());
+  const local = fabric.util.transformPoint({ x: canvasX, y: canvasY }, inv);
+  const imgX = (local.x + obj.width / 2)  * (w / obj.width);
+  const imgY = (local.y + obj.height / 2) * (h / obj.height);
 
   const size = parseInt(document.getElementById('eraserSize').value);
   const radius = size * (w / (obj.width * obj.scaleX));
 
-  offscreenCtx.globalCompositeOperation = 'destination-out';
-  offscreenCtx.beginPath();
-  offscreenCtx.arc(imgX, imgY, radius, 0, Math.PI * 2);
-  offscreenCtx.fill();
-  offscreenCtx.globalCompositeOperation = 'source-over';
+  eraseCtx.globalCompositeOperation = 'destination-out';
+  // плавный штрих: линия между прошлой и текущей точкой
+  if (lastErasePt) {
+    eraseCtx.lineCap = 'round';
+    eraseCtx.lineJoin = 'round';
+    eraseCtx.lineWidth = radius * 2;
+    eraseCtx.beginPath();
+    eraseCtx.moveTo(lastErasePt.x, lastErasePt.y);
+    eraseCtx.lineTo(imgX, imgY);
+    eraseCtx.stroke();
+  }
+  eraseCtx.beginPath();
+  eraseCtx.arc(imgX, imgY, radius, 0, Math.PI * 2);
+  eraseCtx.fill();
+  eraseCtx.globalCompositeOperation = 'source-over';
 
-  // Обновляем превью в реальном времени — через временный canvas без фильтров
-  const previewUrl = offscreenCanvas.toDataURL('image/png');
-  const imgEl = new Image();
-  imgEl.onload = () => {
-    // Сохраняем _originalElement нетронутым, меняем только _element для превью
-    eraserTarget._element = imgEl;
-    canvas.renderAll();
-  };
-  imgEl.src = previewUrl;
+  lastErasePt = { x: imgX, y: imgY };
+  obj.dirty = true;
+  canvas.renderAll();
+}
+
+function finalizeErase() {
+  if (!isErasing) return;
+  isErasing = false;
+  lastErasePt = null;
+  // объект уже держит ссылку на свой элемент-холст — ничего пересоздавать не нужно
+  eraseCanvas = null;
+  eraseCtx = null;
+  saveHistory();
 }
 
 // =========================================
