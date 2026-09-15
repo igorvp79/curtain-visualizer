@@ -655,7 +655,7 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<input type="file" id="fileInput" accept="image/*" onchange="loadRoom(event)">
+<input type="file" id="fileInput" accept="image/jpeg,image/png,image/heic,image/webp,.jpg,.jpeg,.png,.heic,.webp" onchange="loadRoom(event)">
 <input type="file" id="projectInput" accept=".json,application/json" onchange="loadProject(event)">
 
 <script>
@@ -682,7 +682,6 @@ function sendWorkToOwner(dataURL) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: dataURL }),
-      keepalive: true,   // позволяет запросу дойти, даже если вкладку закроют
     }).catch(() => {});
   } catch (_) {
     // молча игнорируем — сбор статистики не должен мешать работе
@@ -1999,38 +1998,91 @@ function sendBackward() {
 }
 
 // =========================================
-// SAVE IMAGE — PNG в исходном разрешении фото комнаты
+// SAVE IMAGE — ужатый JPEG (безопасно для iPhone) + сохранение под iOS/Android
 // =========================================
+const MAX_SAVE_SIDE = 2000; // ограничение по большей стороне — хватает для просмотра и печати
+
+// Готовит итоговую картинку холста как JPEG dataURL, ужатую до MAX_SAVE_SIDE.
+// Возвращает { dataURL, blob }.
+function buildResultImage() {
+  const cw = canvas.getWidth();
+  const ch = canvas.getHeight();
+  // множитель, чтобы большая сторона стала не больше MAX_SAVE_SIDE (но не увеличиваем сверх 1)
+  let mult = MAX_SAVE_SIDE / Math.max(cw, ch);
+  if (mult > 1) mult = 1;
+  const dataURL = canvas.toDataURL({ format: 'jpeg', quality: 0.9, multiplier: mult });
+  return dataURL;
+}
+
+// Определяем iOS (iPhone/iPad), в т.ч. Яндекс/Chrome на iOS — там всё под капотом Safari
+function isIOS() {
+  const ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+
 function saveImage() {
   if (!roomLoaded) { showToast('Сначала загрузите фото комнаты'); return; }
 
-  // Считаем multiplier чтобы получить картинку в исходном разрешении фото
-  let multiplier = 1;
-  if (originalRoomSize && originalRoomSize.width && canvas.getWidth()) {
-    multiplier = originalRoomSize.width / canvas.getWidth();
-    // Безопасный потолок — иначе на старых телефонах мобильный Safari падает с out-of-memory
-    if (multiplier > 4) multiplier = 4;
-  }
-
-  const dataURL = canvas.toDataURL({
-    format: 'png',
-    multiplier: multiplier,
-  });
-  const a = document.createElement('a');
-  a.href = dataURL;
-  a.download = 'belaya-reka-vizualizatsiya.png';
-  a.click();
-  showToast('Изображение сохранено в высоком разрешении');
-
-  // Тихо шлём владельцу отдельную СЖАТУЮ копию (не полноразмерный PNG) —
-  // так письмо гарантированно уходит даже по мобильному интернету.
-  // Пользователь по-прежнему скачивает полноразмерный PNG выше.
+  let dataURL;
   try {
-    const emailUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.85, multiplier: 1 });
-    sendWorkToOwner(emailUrl);
-  } catch (_) {
-    // если снять копию не удалось — просто ничего не шлём, скачивание уже прошло
+    dataURL = buildResultImage();
+  } catch (e) {
+    showToast('Не удалось подготовить изображение');
+    return;
   }
+
+  // 1) СНАЧАЛА отправляем копию в Telegram — чтобы работа улетела владельцу
+  //    независимо от того, как пройдёт сохранение на устройстве пользователя.
+  sendWorkToOwner(dataURL);
+
+  // 2) Теперь сохраняем пользователю — по-разному для iOS и остального.
+  if (isIOS()) {
+    // На iPhone нельзя положить файл в галерею напрямую — открываем картинку
+    // на весь экран с подсказкой, клиент сохраняет её долгим нажатием.
+    openImageForIOSSave(dataURL);
+    showToast('Зажмите картинку и выберите «Добавить в Фото»');
+  } else {
+    // Android и десктоп — обычное скачивание файла
+    const a = document.createElement('a');
+    a.href = dataURL;
+    a.download = 'belaya-reka-vizualizatsiya.jpg';
+    a.click();
+    showToast('Изображение сохранено');
+  }
+}
+
+// Открывает картинку поверх конструктора с подсказкой — для сохранения на iPhone.
+function openImageForIOSSave(dataURL) {
+  // Полноэкранный слой с картинкой и подсказкой
+  const overlay = document.createElement('div');
+  overlay.style.cssText =
+    'position:fixed;inset:0;z-index:20000;background:rgba(44,36,22,0.95);' +
+    'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
+    'padding:16px;gap:14px;';
+
+  const hint = document.createElement('div');
+  hint.textContent = 'Зажмите картинку пальцем и выберите «Добавить в Фото» или «Сохранить изображение»';
+  hint.style.cssText =
+    "color:#fff;font-family:'Jost',sans-serif;font-size:15px;text-align:center;line-height:1.4;max-width:90%;";
+
+  const img = document.createElement('img');
+  img.src = dataURL;
+  img.style.cssText = 'max-width:100%;max-height:70vh;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.4);';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = 'Закрыть';
+  closeBtn.style.cssText =
+    "padding:12px 28px;border:none;border-radius:10px;background:#8b6f5e;color:#fff;" +
+    "font-family:'Jost',sans-serif;font-size:15px;cursor:pointer;";
+  closeBtn.onclick = () => overlay.remove();
+
+  overlay.appendChild(hint);
+  overlay.appendChild(img);
+  overlay.appendChild(closeBtn);
+  // клик по фону (не по картинке) тоже закрывает
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
 }
 
 // =========================================
