@@ -305,7 +305,14 @@ def _send_work_email(img_bytes, when_str, label="Новая работа в ви
 @app.route('/collect', methods=['POST'])
 def collect_work():
     """Страница тихо шлёт сюда скачанную работу — пересылаем её в Telegram владельцу."""
-    data = request.get_json(silent=True) or {}
+    # Тело может прийти как application/json ИЛИ как text/plain (страница шлёт
+    # text/plain, чтобы избежать CORS-preflight на некоторых Android-браузерах).
+    data = request.get_json(silent=True)
+    if not data:
+        try:
+            data = json.loads(request.get_data(as_text=True) or "{}")
+        except Exception:
+            data = {}
     data_url = data.get('image')
     if not data_url or not data_url.startswith('data:image/'):
         return jsonify({"error": "no valid 'image' (data URL) in JSON body"}), 400
