@@ -687,32 +687,6 @@
 // =========================================
 const COLLECT_API_BASE = 'https://br-photo.onrender.com';
 
-// ВРЕМЕННАЯ ДИАГНОСТИКА: показываем любую JS-ошибку прямо на экране телефона,
-// чтобы понять, что ломается на Android. После починки этот блок уберём.
-window.addEventListener('error', function (e) {
-  try {
-    var box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;' +
-      'background:#b85c5c;color:#fff;font:13px/1.4 sans-serif;padding:12px 14px;' +
-      'border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3);white-space:pre-wrap;';
-    box.textContent = 'ОШИБКА: ' + (e.message || e.error || 'неизвестно') +
-      '\n' + (e.filename || '') + ':' + (e.lineno || '');
-    box.onclick = function () { box.remove(); };
-    document.body.appendChild(box);
-  } catch (_) {}
-});
-window.addEventListener('unhandledrejection', function (e) {
-  try {
-    var box = document.createElement('div');
-    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;' +
-      'background:#b85c5c;color:#fff;font:13px/1.4 sans-serif;padding:12px 14px;' +
-      'border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3);white-space:pre-wrap;';
-    box.textContent = 'PROMISE-ОШИБКА: ' + (e.reason && e.reason.message ? e.reason.message : e.reason);
-    box.onclick = function () { box.remove(); };
-    document.body.appendChild(box);
-  } catch (_) {}
-});
-
 // Разогрев сервера в фоне — Render free tier "засыпает" после простоя,
 // пробуждение занимает до минуты. Пингуем заранее, чтобы к моменту
 // сохранения сервер уже был готов принять работу.
