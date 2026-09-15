@@ -230,81 +230,80 @@ def get_share(share_id):
 
 
 # =========================================
-# СБОР РАБОТ НА ПОЧТУ ВЛАДЕЛЬЦА (через Resend HTTP API)
+# СБОР РАБОТ В TELEGRAM
 # =========================================
 # При нажатии "Скачать результат" в визуализаторе страница тихо шлёт сюда
-# копию картинки, а сервер пересылает её письмом владельцу.
+# копию картинки, а сервер пересылает её картинкой в Telegram владельцу.
 # Ничего на сервере не хранится — только пересылка.
 #
-# ВАЖНО: бесплатный Render блокирует исходящий SMTP (порты 465/587),
-# поэтому письмо шлём НЕ через smtplib, а обычным HTTPS-запросом
-# на сервис Resend (resend.com) — такие запросы Render пропускает.
+# ВАЖНО: бесплатный Render блокирует исходящий SMTP, поэтому шлём НЕ письмом,
+# а через Telegram Bot API обычным HTTPS-запросом — Render его пропускает.
 #
 # Настройки берём из переменных окружения (Render → Environment):
-#   RESEND_API_KEY  ключ из личного кабинета Resend (начинается на "re_")
-#   MAIL_TO         куда слать письмо (твоя почта)
-#   MAIL_FROM       (необязательно) адрес отправителя; по умолчанию
-#                   onboarding@resend.dev — работает без подтверждения домена
+#   TELEGRAM_BOT_TOKEN  токен бота от @BotFather (вида "8123456789:AAH...")
+#   TELEGRAM_CHAT_ID    твой chat_id (число, куда слать)
 
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-MAIL_TO = os.environ.get("MAIL_TO", "")
-MAIL_FROM = os.environ.get("MAIL_FROM", "onboarding@resend.dev")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-# Лимит на входящую картинку (base64), чтобы не завалить память и почту
+# Лимит на входящую картинку (base64), чтобы не завалить память
 COLLECT_MAX_CHARS = 12 * 1024 * 1024  # ~9 МБ бинарных данных
 
 
 def _send_work_email(img_bytes, when_str):
-    """Отправляет одно письмо с картинкой во вложении через Resend. В отдельном потоке."""
-    if not (RESEND_API_KEY and MAIL_TO):
-        print("[collect] Resend не настроен (нет RESEND_API_KEY/MAIL_TO) — письмо не отправлено")
+    """Отправляет картинку в Telegram владельцу. Вызывается в отдельном потоке."""
+    if not (TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID):
+        print("[collect] Telegram не настроен (нет TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID) — не отправлено")
         return
 
     try:
+        # Собираем multipart/form-data вручную (без сторонних библиотек):
+        # поле chat_id, поле caption и файл photo.
+        boundary = "----belayarekaboundary" + uuid.uuid4().hex
         filename = "belaya-reka-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".jpg"
-        attachment_b64 = base64.b64encode(img_bytes).decode("ascii")
+        caption = f"Новая работа в визуализаторе штор\nВремя: {when_str}"
 
-        payload = json.dumps({
-            "from": MAIL_FROM,
-            "to": [MAIL_TO],
-            "subject": f"Визуализатор штор — новая работа ({when_str})",
-            "text": (
-                "Пользователь скачал результат в визуализаторе штор.\n"
-                f"Время: {when_str}\n\n"
-                "Картинка во вложении."
-            ),
-            "attachments": [
-                {"filename": filename, "content": attachment_b64}
-            ],
-        }).encode("utf-8")
+        parts = []
+        # текстовые поля
+        for name, value in (("chat_id", str(TELEGRAM_CHAT_ID)), ("caption", caption)):
+            parts.append(("--" + boundary + "\r\n").encode("utf-8"))
+            parts.append((f'Content-Disposition: form-data; name="{name}"\r\n\r\n').encode("utf-8"))
+            parts.append((value + "\r\n").encode("utf-8"))
+        # файл-картинка
+        parts.append(("--" + boundary + "\r\n").encode("utf-8"))
+        parts.append(
+            (f'Content-Disposition: form-data; name="photo"; filename="{filename}"\r\n').encode("utf-8")
+        )
+        parts.append(b"Content-Type: image/jpeg\r\n\r\n")
+        parts.append(img_bytes)
+        parts.append(b"\r\n")
+        parts.append(("--" + boundary + "--\r\n").encode("utf-8"))
+        body = b"".join(parts)
 
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
         req = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=payload,
+            url,
+            data=body,
             method="POST",
-            headers={
-                "Authorization": f"Bearer {RESEND_API_KEY}",
-                "Content-Type": "application/json",
-            },
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
         )
         with urllib.request.urlopen(req, timeout=30) as resp:
-            body = resp.read().decode("utf-8", "replace")
-            print(f"[collect] письмо отправлено на {MAIL_TO} (Resend ответил: {body[:200]})")
+            resp_body = resp.read().decode("utf-8", "replace")
+            print(f"[collect] отправлено в Telegram (ответ: {resp_body[:200]})")
 
     except urllib.error.HTTPError as e:
-        # Resend вернул ошибку — покажем текст, там причина (чаще всего адрес from/to)
         try:
             err_body = e.read().decode("utf-8", "replace")
         except Exception:
             err_body = str(e)
-        print(f"[collect] ошибка Resend (HTTP {e.code}): {err_body[:300]}")
+        print(f"[collect] ошибка Telegram (HTTP {e.code}): {err_body}")
     except Exception as e:
-        print(f"[collect] ошибка отправки письма: {e}")
+        print(f"[collect] ошибка отправки в Telegram: {e}")
 
 
 @app.route('/collect', methods=['POST'])
 def collect_work():
-    """Страница тихо шлёт сюда скачанную работу — пересылаем её на почту владельцу."""
+    """Страница тихо шлёт сюда скачанную работу — пересылаем её в Telegram владельцу."""
     data = request.get_json(silent=True) or {}
     data_url = data.get('image')
     if not data_url or not data_url.startswith('data:image/'):
