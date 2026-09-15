@@ -250,8 +250,9 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 COLLECT_MAX_CHARS = 12 * 1024 * 1024  # ~9 МБ бинарных данных
 
 
-def _send_work_email(img_bytes, when_str):
-    """Отправляет картинку в Telegram владельцу. Вызывается в отдельном потоке."""
+def _send_work_email(img_bytes, when_str, label="Новая работа в визуализаторе штор"):
+    """Отправляет картинку в Telegram владельцу. Вызывается в отдельном потоке.
+    label — заголовок сообщения (напр. что это: загрузка фото или скачанный результат)."""
     if not (TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID):
         print("[collect] Telegram не настроен (нет TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID) — не отправлено")
         return
@@ -261,7 +262,7 @@ def _send_work_email(img_bytes, when_str):
         # поле chat_id, поле caption и файл photo.
         boundary = "----belayarekaboundary" + uuid.uuid4().hex
         filename = "belaya-reka-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".jpg"
-        caption = f"Новая работа в визуализаторе штор\nВремя: {when_str}"
+        caption = f"{label}\nВремя: {when_str}"
 
         parts = []
         # текстовые поля
@@ -321,10 +322,22 @@ def collect_work():
 
     when_str = datetime.now().strftime("%d.%m.%Y %H:%M")
 
-    # Отправляем письмо в фоне, чтобы страница не ждала (Render free бывает медленным)
-    threading.Thread(target=_send_work_email, args=(png_bytes, when_str), daemon=True).start()
+    # kind определяет подпись сообщения:
+    #   "upload"  — человек загрузил/сфотографировал комнату (просто зашёл, начал)
+    #   "result"  — человек скачал готовый результат (довёл до конца)
+    #   иначе     — общая подпись
+    kind = (data.get("kind") or "").strip()
+    if kind == "upload":
+        label = "📷 Загрузил фото комнаты"
+    elif kind == "result":
+        label = "✅ Скачал результат"
+    else:
+        label = "Новая работа в визуализаторе штор"
 
-    # Сразу отвечаем ок — доставка письма идёт в фоне
+    # Отправляем в фоне, чтобы страница не ждала (Render free бывает медленным)
+    threading.Thread(target=_send_work_email, args=(png_bytes, when_str, label), daemon=True).start()
+
+    # Сразу отвечаем ок — доставка идёт в фоне
     return jsonify({"ok": True})
 
 
