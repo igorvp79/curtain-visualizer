@@ -535,7 +535,7 @@
     <div class="topbar-right">
       <button class="icon-btn" id="btnUndo" onclick="undo()" disabled aria-label="Отмена">↩</button>
       <button class="icon-btn" id="btnRedo" onclick="redo()" disabled aria-label="Вернуть">↪</button>
-      <button class="icon-btn primary" onclick="document.getElementById('fileInput').click()" aria-label="Загрузить фото">📷</button>
+      <button class="icon-btn primary" onclick="openPhotoSourceMenu()" aria-label="Добавить фото">📷</button>
       <button class="icon-btn" onclick="saveImage()" aria-label="Скачать">💾</button>
       <button class="icon-btn danger" onclick="clearAll()" aria-label="Очистить">✕</button>
     </div>
@@ -655,7 +655,30 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Меню выбора источника фото (камера / галерея) -->
+<div id="photoSourceBackdrop" onclick="closePhotoSourceMenu()"
+  style="display:none;position:fixed;inset:0;z-index:15000;background:rgba(44,36,22,0.45);backdrop-filter:blur(2px);"></div>
+<div id="photoSourceSheet"
+  style="display:none;position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:15001;
+         width:min(92vw,360px);background:#fff;border-radius:16px;padding:10px;
+         box-shadow:0 10px 40px rgba(44,36,22,0.28);font-family:'Jost',sans-serif;">
+  <div style="text-align:center;font-size:12px;color:#9e8e7e;letter-spacing:0.08em;text-transform:uppercase;padding:8px 0 10px;">Добавить фото комнаты</div>
+  <button onclick="choosePhotoSource('camera')"
+    style="width:100%;display:flex;align-items:center;gap:14px;padding:15px 16px;border:none;border-radius:12px;background:#f5f0eb;margin-bottom:8px;font-family:'Jost',sans-serif;font-size:16px;color:#2c2416;cursor:pointer;">
+    <span style="font-size:22px;">📷</span> Сделать фото
+  </button>
+  <button onclick="choosePhotoSource('gallery')"
+    style="width:100%;display:flex;align-items:center;gap:14px;padding:15px 16px;border:none;border-radius:12px;background:#f5f0eb;margin-bottom:8px;font-family:'Jost',sans-serif;font-size:16px;color:#2c2416;cursor:pointer;">
+    <span style="font-size:22px;">🖼</span> Выбрать из галереи
+  </button>
+  <button onclick="closePhotoSourceMenu()"
+    style="width:100%;padding:13px 16px;border:none;border-radius:12px;background:transparent;font-family:'Jost',sans-serif;font-size:15px;color:#9e8e7e;cursor:pointer;">
+    Отмена
+  </button>
+</div>
+
 <input type="file" id="fileInput" accept="image/jpeg,image/png,image/heic,image/webp,.jpg,.jpeg,.png,.heic,.webp" onchange="loadRoom(event)">
+<input type="file" id="cameraInput" accept="image/*" capture="environment" onchange="loadRoom(event)">
 <input type="file" id="projectInput" accept=".json,application/json" onchange="loadProject(event)">
 
 <script>
@@ -1049,6 +1072,29 @@ function addCurtainToCanvas(template, catIdx, itemIdx) {
     canvas.renderAll();
     showToast('Штора добавлена · тяните пальцами чтобы переместить');
   }, { crossOrigin: 'anonymous' });
+}
+
+// =========================================
+// ВЫБОР ИСТОЧНИКА ФОТО (камера / галерея)
+// На Android нет единого системного диалога, поэтому даём явный выбор.
+// =========================================
+function openPhotoSourceMenu() {
+  document.getElementById('photoSourceBackdrop').style.display = 'block';
+  document.getElementById('photoSourceSheet').style.display = 'block';
+}
+
+function closePhotoSourceMenu() {
+  document.getElementById('photoSourceBackdrop').style.display = 'none';
+  document.getElementById('photoSourceSheet').style.display = 'none';
+}
+
+function choosePhotoSource(kind) {
+  closePhotoSourceMenu();
+  if (kind === 'camera') {
+    document.getElementById('cameraInput').click();
+  } else {
+    document.getElementById('fileInput').click();
+  }
 }
 
 // =========================================
