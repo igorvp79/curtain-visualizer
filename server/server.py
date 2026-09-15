@@ -19,14 +19,14 @@
 
 import os
 import io
-import ssl
 import time
+import json
 import uuid
 import base64
-import smtplib
 import threading
+import urllib.request
+import urllib.error
 from datetime import datetime
-from email.message import EmailMessage
 
 from flask import Flask, request, jsonify, abort, make_response
 from PIL import Image
@@ -230,64 +230,75 @@ def get_share(share_id):
 
 
 # =========================================
-# СБОР РАБОТ НА ПОЧТУ ВЛАДЕЛЬЦА
+# СБОР РАБОТ НА ПОЧТУ ВЛАДЕЛЬЦА (через Resend HTTP API)
 # =========================================
 # При нажатии "Скачать результат" в визуализаторе страница тихо шлёт сюда
-# копию картинки, а сервер пересылает её письмом на MAIL_TO.
+# копию картинки, а сервер пересылает её письмом владельцу.
 # Ничего на сервере не хранится — только пересылка.
 #
-# Настройки берутся из переменных окружения (Render → Environment),
-# чтобы пароль не лежал в открытом коде на GitHub:
-#   SMTP_HOST      напр. smtp.mail.ru
-#   SMTP_PORT      напр. 465
-#   SMTP_USER      напр. igorvp79@mail.ru   (от чьего имени шлём)
-#   SMTP_PASSWORD  пароль для внешних приложений (НЕ обычный пароль почты)
-#   MAIL_TO        куда слать (если не задано — на SMTP_USER)
+# ВАЖНО: бесплатный Render блокирует исходящий SMTP (порты 465/587),
+# поэтому письмо шлём НЕ через smtplib, а обычным HTTPS-запросом
+# на сервис Resend (resend.com) — такие запросы Render пропускает.
+#
+# Настройки берём из переменных окружения (Render → Environment):
+#   RESEND_API_KEY  ключ из личного кабинета Resend (начинается на "re_")
+#   MAIL_TO         куда слать письмо (твоя почта)
+#   MAIL_FROM       (необязательно) адрес отправителя; по умолчанию
+#                   onboarding@resend.dev — работает без подтверждения домена
 
-SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.mail.ru")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
-SMTP_USER = os.environ.get("SMTP_USER", "")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-MAIL_TO = os.environ.get("MAIL_TO", "") or SMTP_USER
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+MAIL_TO = os.environ.get("MAIL_TO", "")
+MAIL_FROM = os.environ.get("MAIL_FROM", "onboarding@resend.dev")
 
 # Лимит на входящую картинку (base64), чтобы не завалить память и почту
 COLLECT_MAX_CHARS = 12 * 1024 * 1024  # ~9 МБ бинарных данных
 
 
-def _send_work_email(png_bytes, when_str):
-    """Отправляет одно письмо с картинкой во вложении. Вызывается в отдельном потоке."""
-    if not (SMTP_USER and SMTP_PASSWORD and MAIL_TO):
-        print("[collect] SMTP не настроен (нет SMTP_USER/SMTP_PASSWORD/MAIL_TO) — письмо не отправлено")
+def _send_work_email(img_bytes, when_str):
+    """Отправляет одно письмо с картинкой во вложении через Resend. В отдельном потоке."""
+    if not (RESEND_API_KEY and MAIL_TO):
+        print("[collect] Resend не настроен (нет RESEND_API_KEY/MAIL_TO) — письмо не отправлено")
         return
 
     try:
-        msg = EmailMessage()
-        msg["Subject"] = f"Визуализатор штор — новая работа ({when_str})"
-        msg["From"] = SMTP_USER
-        msg["To"] = MAIL_TO
-        msg.set_content(
-            "Пользователь скачал результат в визуализаторе штор.\n"
-            f"Время: {when_str}\n\n"
-            "Картинка во вложении."
+        filename = "belaya-reka-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".jpg"
+        attachment_b64 = base64.b64encode(img_bytes).decode("ascii")
+
+        payload = json.dumps({
+            "from": MAIL_FROM,
+            "to": [MAIL_TO],
+            "subject": f"Визуализатор штор — новая работа ({when_str})",
+            "text": (
+                "Пользователь скачал результат в визуализаторе штор.\n"
+                f"Время: {when_str}\n\n"
+                "Картинка во вложении."
+            ),
+            "attachments": [
+                {"filename": filename, "content": attachment_b64}
+            ],
+        }).encode("utf-8")
+
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=payload,
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
         )
-        filename = "belaya-reka-" + datetime.now().strftime("%Y%m%d-%H%M%S") + ".png"
-        msg.add_attachment(png_bytes, maintype="image", subtype="png", filename=filename)
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            body = resp.read().decode("utf-8", "replace")
+            print(f"[collect] письмо отправлено на {MAIL_TO} (Resend ответил: {body[:200]})")
 
-        context = ssl.create_default_context()
-        # Порт 465 → SSL; порт 587 → STARTTLS
-        if SMTP_PORT == 465:
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, context=context, timeout=30) as server:
-                server.login(SMTP_USER, SMTP_PASSWORD)
-                server.send_message(msg)
-        else:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
-                server.starttls(context=context)
-                server.login(SMTP_USER, SMTP_PASSWORD)
-                server.send_message(msg)
-
-        print(f"[collect] письмо отправлено на {MAIL_TO}")
+    except urllib.error.HTTPError as e:
+        # Resend вернул ошибку — покажем текст, там причина (чаще всего адрес from/to)
+        try:
+            err_body = e.read().decode("utf-8", "replace")
+        except Exception:
+            err_body = str(e)
+        print(f"[collect] ошибка Resend (HTTP {e.code}): {err_body[:300]}")
     except Exception as e:
-        # Не роняем ничего — просто логируем, пользователь этого не видит
         print(f"[collect] ошибка отправки письма: {e}")
 
 
