@@ -574,6 +574,51 @@
 </head>
 <body>
 
+<!-- ПРИВЕТСТВЕННЫЙ ЭКРАН «Как это работает» (показывается при каждом открытии) -->
+<div id="welcomeOverlay" style="position:fixed;inset:0;z-index:30000;background:rgba(44,36,22,0.55);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Jost',sans-serif;">
+  <div style="position:relative;background:#fff;border-radius:16px;max-width:520px;width:100%;padding:32px 34px 28px;box-shadow:0 12px 50px rgba(44,36,22,0.3);">
+    <button onclick="document.getElementById('welcomeOverlay').style.display='none'" aria-label="Закрыть"
+      style="position:absolute;top:14px;right:16px;background:none;border:none;font-size:26px;line-height:1;color:#9e8e7e;cursor:pointer;padding:4px 8px;">×</button>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:26px;color:#8b6f5e;margin-bottom:4px;">Как нарисовать шторы на своём окне</div>
+    <div style="font-size:14px;color:#9e8e7e;margin-bottom:22px;">Всего 4 шага. Шторы расставляете вы сами — это не автоматика.</div>
+
+    <div style="display:flex;gap:14px;margin-bottom:16px;">
+      <div style="font-size:26px;flex-shrink:0;">📷</div>
+      <div>
+        <div style="font-size:16px;color:#2c2416;font-weight:500;">1. Загрузите фото окна</div>
+        <div style="font-size:13.5px;color:#9e8e7e;line-height:1.45;margin-top:2px;">Нажмите «Добавить фото комнаты» и выберите файл с компьютера.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-bottom:16px;">
+      <div style="font-size:26px;flex-shrink:0;">🪟</div>
+      <div>
+        <div style="font-size:16px;color:#2c2416;font-weight:500;">2. Выберите шторы из каталога</div>
+        <div style="font-size:13.5px;color:#9e8e7e;line-height:1.45;margin-top:2px;">Каталог штор — в панели слева. Выберите модель: тюль, портьеры, римские, рулонные и другие.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-bottom:16px;">
+      <div style="font-size:26px;flex-shrink:0;">✋</div>
+      <div>
+        <div style="font-size:16px;color:#2c2416;font-weight:500;">3. Двигайте и настраивайте</div>
+        <div style="font-size:13.5px;color:#9e8e7e;line-height:1.45;margin-top:2px;">Перетаскивайте шторы мышью, меняйте размер, цвет и прозрачность, чтобы они сели на ваше окно.</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:14px;margin-bottom:24px;">
+      <div style="font-size:26px;flex-shrink:0;">💾</div>
+      <div>
+        <div style="font-size:16px;color:#2c2416;font-weight:500;">4. Сохраните результат</div>
+        <div style="font-size:13.5px;color:#9e8e7e;line-height:1.45;margin-top:2px;">Нажмите «Сохранить результат» — картинка со шторами останется у вас.</div>
+      </div>
+    </div>
+
+    <button onclick="document.getElementById('welcomeOverlay').style.display='none'"
+      style="width:100%;padding:14px;border:none;border-radius:10px;background:#8b6f5e;color:#fff;font-family:'Jost',sans-serif;font-size:16px;cursor:pointer;">
+      Понятно, начать
+    </button>
+  </div>
+</div>
+
+
 <div class="app">
 
   <!-- HEADER -->
