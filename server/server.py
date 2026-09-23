@@ -341,6 +341,11 @@ def collect_work():
     else:
         label = "Новая работа в визуализаторе штор"
 
+    # Источник загрузки (ПК / iPhone / Android) — добавляем в подпись, если пришёл
+    device = (data.get("device") or "").strip()
+    if device:
+        label += f" · {device}"
+
     # Отправляем в фоне, чтобы страница не ждала (Render free бывает медленным)
     threading.Thread(target=_send_work_email, args=(png_bytes, when_str, label), daemon=True).start()
 
